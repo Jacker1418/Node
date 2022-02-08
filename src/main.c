@@ -667,14 +667,9 @@ int main(void)
 
     // Enter main loop.
 		
-		uint8_t state = 0;
     for (;;)
     {
-        NRF_LOG_INFO("Wait");
-
-        nrf_delay_ms(1000);
-
-        NRF_LOG_FLUSH();
+        
     }
 }
 
