@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "nordic_common.h": "c",
+        "nrf.h": "c",
+        "nrf52.h": "c",
+        "stdint.h": "c"
+    },
+    "workbench.editor.autoLockGroups": {
+        "mainThreadWebview-markdown.preview": true
+    },
+    "idf.portWin": "COM5"
+}
