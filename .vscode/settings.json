@@ -3,7 +3,20 @@
         "nordic_common.h": "c",
         "nrf.h": "c",
         "nrf52.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "sdk_common.h": "c",
+        "ble_conn_params.h": "c",
+        "nrf_uart.h": "c",
+        "nrf_sdh.h": "c",
+        "nrf_sdh_ble.h": "c",
+        "app_util_platform.h": "c",
+        "ble_hci.h": "c",
+        "sdk_errors.h": "c",
+        "ble_advertising.h": "c",
+        "ble_srv_common.h": "c",
+        "sdk_config.h": "c",
+        "nrf_sdh_soc.h": "c",
+        "initperipheral.h": "c"
     },
     "workbench.editor.autoLockGroups": {
         "mainThreadWebview-markdown.preview": true

@@ -9,7 +9,8 @@
             "includePath": [
                 "${nrfSDK}/components/**",
                 "${nrfSDK}/modules/**",
-                "${nrfSDK}/integration/**"
+                "${nrfSDK}/integration/**",
+                "${workspaceFolder}/build/s132/config/**"
             ],
             "forcedInclude": [
                 "${workspaceFolder}/build/s132/config/sdk_config.h"
@@ -20,6 +21,7 @@
                 "INITIALIZE_USER_SECTIONS",
                 "FLOAT_ABI_HARD",
                 "NRF52",
+                "NRF52_DK",                 // PCB Board에 따라 enum PIN_MAP 변경
                 "NRF52832_XXAA",
                 "NRF52_PAN_74",
                 "NRF_SD_BLE_API_VERSION=6",
