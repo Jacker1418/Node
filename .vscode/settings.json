@@ -16,7 +16,9 @@
         "ble_srv_common.h": "c",
         "sdk_config.h": "c",
         "nrf_sdh_soc.h": "c",
-        "initperipheral.h": "c"
+        "initperipheral.h": "c",
+        "nrf_error.h": "c",
+        "nrf_gpio.h": "c"
     },
     "workbench.editor.autoLockGroups": {
         "mainThreadWebview-markdown.preview": true

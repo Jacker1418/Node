@@ -39,7 +39,7 @@
  */
 /* Header guard */
 
-#ifndef SOFTDEVICE_PRESENT
+#ifdef SOFTDEVICE_PRESENT
 
 /**
   @defgroup nrf_error Global Error Codes
