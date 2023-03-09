@@ -1,15 +1,15 @@
 #include "initGPIO.h"
 
-static uint8_t gpiote_channel[8] = {0,};
+static int8_t gpiote_channel[8] = {0,};
 
 __STATIC_INLINE void config_gpio_output(uint32_t in_pin, nrf_gpio_pin_pull_t in_pushpull, nrf_gpio_pin_drive_t in_drive);
-__STATIC_INLINE void config_gpio_input(uint32_t in_pin, nrf_gpio_pin_pull_t in_pushpull, nrf_gpio_pin_drive_t in_drive, nrf_gpio_pin_sense_t in_sense);
+__STATIC_INLINE ret_code_t config_gpio_input(uint32_t in_pin, nrf_gpio_pin_pull_t in_pushpull, nrf_gpio_pin_drive_t in_drive, nrf_gpio_pin_sense_t in_sense);
 
 __STATIC_INLINE void clear_gpiote_event(uint32_t in_event);
 __STATIC_INLINE void enable_gpiote_event(uint32_t in_interrupt);
 __STATIC_INLINE void disable_gpiote_event(uint32_t in_interrupt);
 
-__STATIC_INLINE uint8_t check_gpiote_channel(uint8_t in_channel);
+__STATIC_INLINE ret_code_t assign_gpiote_channel(uint8_t in_pin, uint8_t* out_channel);
 
 ret_code_t openGPIO(void)
 {
@@ -64,8 +64,10 @@ __STATIC_INLINE void config_gpio_output(uint32_t in_pin, nrf_gpio_pin_pull_t in_
     
 }
 
-__STATIC_INLINE void config_gpio_input(uint32_t in_pin, nrf_gpio_pin_pull_t in_pushpull, nrf_gpio_pin_drive_t in_drive, nrf_gpio_pin_sense_t in_sense)
+__STATIC_INLINE ret_code_t config_gpio_input(uint32_t in_pin, nrf_gpio_pin_pull_t in_pushpull, nrf_gpio_pin_drive_t in_drive, nrf_gpio_pin_sense_t in_sense)
 {
+
+
     NRF_GPIO_Type* reg_gpio = NRF_P0;
 
     reg_gpio->PIN_CNF[in_pin] = ((uint32_t)in_pushpull << GPIO_PIN_CNF_PULL_Pos)
@@ -82,13 +84,12 @@ __STATIC_INLINE void config_gpio_input(uint32_t in_pin, nrf_gpio_pin_pull_t in_p
         clear_gpiote_event(NRF_GPIOTE_EVENTS_PORT);
         enable_gpiote_event(GPIOTE_INTENSET_PORT_Msk);
 
-        NRF_GPIOTE->CONFIG[0] &= ~(GPIOTE_CONFIG_PORT_PIN_Msk | GPIOTE_CONFIG_POLARITY_Msk);
-        NRF_GPIOTE->CONFIG[0] |=    ((in_pin << GPIOTE_CONFIG_PSEL_Pos) & GPIOTE_CONFIG_PORT_PIN_Msk) |
-                                    ((in_sense << GPIOTE_CONFIG_POLARITY_Pos) & GPIOTE_CONFIG_POLARITY_Msk);
-    }
-    else
-    {
+        uint8_t channel = 0;
+        assign_gpiote_channel(in_pin, &channel);
 
+        NRF_GPIOTE->CONFIG[channel] &= ~(GPIOTE_CONFIG_PORT_PIN_Msk | GPIOTE_CONFIG_POLARITY_Msk);
+        NRF_GPIOTE->CONFIG[channel] |=  ((in_pin << GPIOTE_CONFIG_PSEL_Pos) & GPIOTE_CONFIG_PORT_PIN_Msk) |
+                                        ((in_sense << GPIOTE_CONFIG_POLARITY_Pos) & GPIOTE_CONFIG_POLARITY_Msk);
     }
 }
 
@@ -107,17 +108,28 @@ __STATIC_INLINE void disable_gpiote_event(uint32_t in_interrupt)
     NRF_GPIOTE->INTENCLR = in_interrupt;
 }
 
-__STATIC_INLINE uint8_t check_gpiote_channel(uint8_t in_channel)
+__STATIC_INLINE ret_code_t assign_gpiote_channel(uint8_t in_pin, uint8_t* out_channel)
 {
-    uint8_t result = 0;
+    uint8_t result = NRF_SUCCESS;
 
-    for(uint8_t index = 0; index < 8; index++)
+    uint8_t index = 0;
+
+    for(index = 0; index < GPIOTE_CH_NUM; index++)
     {
-        if(gpiote_channel[index] == 0)
+        if(gpiote_channel[index] == -1)
         {
-            result = index;
+            *out_channel = index;
+            gpiote_channel[index] = in_pin;
+            break;
         }
     }
+
+    if(index == GPIOTE_CH_NUM)
+    {
+        result = NRF_ERROR_NO_MEM;
+    }
+
+    return result;
 }
 
 void GPIOTE_IRQHandler(void)
