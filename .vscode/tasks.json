@@ -1,6 +1,7 @@
 {
     "version": "2.0.0",
-    "tasks": [{
+    "tasks": [
+      {
         "label": "build",
         "type": "shell",
         "command": "make",
@@ -43,7 +44,7 @@
       {
         "label": "erase",
         "type": "shell",
-        "command" : "make erase",
+        "command": "make erase",
         "options": {
           "cwd": "${workspaceFolder}/build/s132/armgcc"
         },

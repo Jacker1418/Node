@@ -6,6 +6,7 @@ OUTPUT_DIRECTORY := _build
 # Workspace
 
 SDK_ROOT := ../../../lib/nRF_SDK
+PRI_LIB := ../../../lib
 PROJ_DIR := ../../..
 
 $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
@@ -13,6 +14,9 @@ $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
 
 # Source files common to all targets
 SRC_FILES += \
+  $(PRI_LIB)/peripheral/drv_gpio.c \
+  $(PRI_LIB)/peripheral/drv_peripheral.c \
+  $(PRI_LIB)/peripheral/drv_uart.c \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S \
   $(SDK_ROOT)/components/libraries/log/src/nrf_log_backend_rtt.c \
   $(SDK_ROOT)/components/libraries/log/src/nrf_log_backend_serial.c \
@@ -74,6 +78,8 @@ SRC_FILES += \
 
 # Include folders common to all targets
 INC_FOLDERS += \
+  $(PRI_LIB)/peripheral \
+  ${PROJ_DIR}/src \
   $(SDK_ROOT)/components/ble/ble_services/ble_ancs_c \
   $(SDK_ROOT)/components/ble/ble_services/ble_ias_c \
   $(SDK_ROOT)/components/libraries/pwm \

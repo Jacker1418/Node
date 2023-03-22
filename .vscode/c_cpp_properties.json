@@ -10,7 +10,12 @@
                 "${nrfSDK}/components/**",
                 "${nrfSDK}/modules/**",
                 "${nrfSDK}/integration/**",
-                "${workspaceFolder}/build/s132/config/**"
+                "${workspaceFolder}/build/s132/config/**",
+                "${workspaceFolder}/lib/ble_advertiser/**",
+                "${workspaceFolder}/lib/ble_init/**",
+                "${workspaceFolder}/lib/ble_scanner/**",
+                "${workspaceFolder}/lib/peripheral/**",
+                "${workspaceFolder}/src/**"
             ],
             "forcedInclude": [
                 "${workspaceFolder}/build/s132/config/sdk_config.h"
@@ -21,14 +26,12 @@
                 "INITIALIZE_USER_SECTIONS",
                 "FLOAT_ABI_HARD",
                 "NRF52",
-                "NRF52_DK",                 // PCB Board에 따라 enum PIN_MAP 변경
                 "NRF52832_XXAA",
                 "NRF52_PAN_74",
                 "NRF_SD_BLE_API_VERSION=6",
                 "S132",
                 "SOFTDEVICE_PRESENT",
-                "SWI_DISABLE0",
-                "_DEBUG"
+                "SWI_DISABLE0"
             ],
             "compilerPath": "${GNU_GCC}/arm-none-eabi-gcc.exe",
             "cStandard": "c11",

@@ -47,7 +47,7 @@
  * This file contains the source code for a sample application that uses the Nordic UART service.
  * This application uses the @ref srvlib_conn_params module.
  */
-
+#include "main.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -76,9 +76,13 @@
 #include "nrf_uarte.h"
 #endif
 
+#ifdef DEBUG
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
+#endif
+
+#include "drv_peripheral.h"
 
 #define APP_BLE_CONN_CFG_TAG            1                                           /**< A tag identifying the SoftDevice BLE configuration. */
 
@@ -696,13 +700,12 @@ static void advertising_start(void)
  */
 int main(void)
 {
-    bool erase_bonds;
-
     // Initialize.
-    uart_init();
-    log_init();
+    // uart_init();
+    // log_init();
     timers_init();
-    buttons_leds_init(&erase_bonds);
+    init_Peripheral();
+
     power_management_init();
     ble_stack_init();
     gap_params_init();
@@ -711,9 +714,6 @@ int main(void)
     advertising_init();
     conn_params_init();
 
-    // Start execution.
-    printf("\r\nUART started.\r\n");
-    NRF_LOG_INFO("Debug logging for UART over RTT started.");
     advertising_start();
 
     // Enter main loop.

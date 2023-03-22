@@ -18,7 +18,16 @@
         "nrf_sdh_soc.h": "c",
         "initperipheral.h": "c",
         "nrf_error.h": "c",
-        "nrf_gpio.h": "c"
+        "nrf_gpio.h": "c",
+        "ble_nus.h": "c",
+        "nrf_ble_qwr.h": "c",
+        "nrf_uarte.h": "c",
+        "nrf_gpiote.h": "c",
+        "nrf_log_ctrl.h": "c",
+        "nrf_log.h": "c",
+        "initgpio.h": "c",
+        "nrf_log_default_backends.h": "c",
+        "main.h": "c"
     },
     "workbench.editor.autoLockGroups": {
         "mainThreadWebview-markdown.preview": true
