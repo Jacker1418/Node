@@ -31,6 +31,22 @@ void event_gpio_handler(nrf_drv_gpiote_pin_t in_pin, nrf_gpiote_polarity_t in_ac
 #endif
 }
 
+void init_GPIO(struct drv_interface *out_instance)
+{
+    out_instance->open = open_GPIO;
+    out_instance->write = write_GPIO;
+    out_instance->read = read_GPIO;
+    out_instance->ioctrl = ioctrl_GPIO;
+    out_instance->isBusy = NULL;
+
+    out_instance->open();
+
+    uint8_t value = false;
+    out_instance->write(LED1, &value, 1);
+    value = true;
+    out_instance->write(LED2, &value, 1);
+}
+
 void open_GPIO(void)
 {
     ret_code_t result = nrf_drv_gpiote_init();
@@ -60,8 +76,6 @@ void open_GPIO(void)
     nrf_gpio_cfg_output(LED1);
     nrf_gpio_cfg_output(LED2);
 
-    nrf_gpio_pin_clear(LED1);
-    nrf_gpio_pin_set(LED2);
 #elif MBN52_NODE
 
     #ifdef DEBUG
@@ -72,17 +86,28 @@ void open_GPIO(void)
 
 }
 
-uint32_t write_GPIO(uint8_t* in_data, uint16_t in_length)
+uint32_t write_GPIO(uint32_t in_pos, uint8_t* in_data, uint32_t in_length)
 {
+    uint32_t result = in_length;
 
+    nrf_gpio_pin_write(in_pos, *in_data);
+
+    return result;
 }
 
-ret_code_t read_GPIO(uint8_t* out_data, uint32_t* out_length)
+ret_code_t read_GPIO(uint32_t in_pos, uint8_t* out_data, uint32_t* out_length)
 {
+    ret_code_t result = NRF_SUCCESS;
 
+    *out_data = nrf_gpio_pin_input_get(in_pos);
+    *out_length = 1;
+
+    return result;
 }
 
-ret_code_t ioctrl_GPIO(uint8_t in_option)
+ret_code_t ioctrl_GPIO(uint32_t in_pos, uint8_t in_option, uint8_t* out_result)
 {
+    ret_code_t result = NRF_SUCCESS;
 
+    return result;
 }

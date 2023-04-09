@@ -10,9 +10,11 @@
 
 #define DEBUG_LOG_TAG "peripheral"
 
+struct drv_interface GPIO;
+
 /**@brief PCB's peripheral initialize
 
- * @retval  NRF_SUCCESS    
+ * @retval  NRF_SUCCESS                    
  * 
  * @warning
  * 
@@ -29,7 +31,7 @@ ret_code_t init_Peripheral(void)
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 #endif
 
-    open_GPIO();
+    init_GPIO(&GPIO);
 
     return result;
 }

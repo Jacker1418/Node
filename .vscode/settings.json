@@ -27,7 +27,10 @@
         "nrf_log.h": "c",
         "initgpio.h": "c",
         "nrf_log_default_backends.h": "c",
-        "main.h": "c"
+        "main.h": "c",
+        "drv_peripheral.h": "c",
+        "stdbool.h": "c",
+        "drv_uart.h": "c"
     },
     "workbench.editor.autoLockGroups": {
         "mainThreadWebview-markdown.preview": true
