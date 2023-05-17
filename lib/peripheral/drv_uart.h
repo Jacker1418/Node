@@ -12,12 +12,21 @@
 
 #define UARTE_IOCTRL_HAS_DATA               0x01
 
-void init_UARTE(struct drv_interface* out_instance);
+enum UARTE_EVENTS
+{
+    UARTE_RX_TIMEOUT,
+    UARTE_RX_ENDRX
+};
 
-void open_UARTE(void);
-uint32_t write_UARTE(uint32_t in_fd, uint8_t* in_data, uint16_t in_length);
-ret_code_t read_UARTE(uint32_t in_fd, uint8_t* out_data, uint32_t* out_length);
-ret_code_t ioctrl_UARTE(uint32_t in_fd, uint8_t in_option, uint8_t* out_result);
-bool isBusy_UARTE(void);
+/**@brief UARTE Configuration
+
+ * @retval  None             
+ * 
+ * @warning
+ * 
+ * @note UART Configuration 및 Timer, PPI, Queue에 대한 설정을 시작
+ */
+void init_UARTE(struct drv_interface* out_instance, void (*uarte_event_handler)(enum UARTE_EVENTS in_evnet, void* in_context));
+
 
 #endif

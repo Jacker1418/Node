@@ -17,6 +17,8 @@ SRC_FILES += \
   $(PRI_LIB)/peripheral/drv_gpio.c \
   $(PRI_LIB)/peripheral/drv_peripheral.c \
   $(PRI_LIB)/peripheral/drv_uart.c \
+  $(PRI_LIB)/peripheral/drv_timer.c \
+  $(PRI_LIB)/peripheral/queue_buffer.c \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S \
   $(SDK_ROOT)/components/libraries/log/src/nrf_log_backend_rtt.c \
   $(SDK_ROOT)/components/libraries/log/src/nrf_log_backend_serial.c \
@@ -30,7 +32,6 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/fifo/app_fifo.c \
   $(SDK_ROOT)/components/libraries/scheduler/app_scheduler.c \
   $(SDK_ROOT)/components/libraries/timer/app_timer.c \
-  $(SDK_ROOT)/components/libraries/uart/app_uart_fifo.c \
   $(SDK_ROOT)/components/libraries/util/app_util_platform.c \
   $(SDK_ROOT)/components/libraries/hardfault/hardfault_implementation.c \
   $(SDK_ROOT)/components/libraries/util/nrf_assert.c \
@@ -49,13 +50,9 @@ SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52.c \
   $(SDK_ROOT)/components/boards/boards.c \
   $(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_clock.c \
-  $(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_uart.c \
   $(SDK_ROOT)/modules/nrfx/soc/nrfx_atomic.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_gpiote.c \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/prs/nrfx_prs.c \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uart.c \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uarte.c \
   $(SDK_ROOT)/components/libraries/bsp/bsp.c \
   $(SDK_ROOT)/components/libraries/bsp/bsp_btn_ble.c \
   $(PROJ_DIR)/src/main.c \
@@ -75,6 +72,11 @@ SRC_FILES += \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_ble.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_soc.c \
+  # $(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_uart.c \
+  # $(SDK_ROOT)/modules/nrfx/drivers/src/prs/nrfx_prs.c \
+  # $(SDK_ROOT)/components/libraries/uart/app_uart_fifo.c \
+  # $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uart.c \
+  # $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uarte.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \

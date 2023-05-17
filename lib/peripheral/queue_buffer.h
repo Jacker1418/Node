@@ -4,12 +4,19 @@
 #include "main.h"
 
 #define SIZE_BUFFER               255
-#define SIZE_QUEUE                5
+#define SIZE_QUEUE                10
+
+struct Buffer 
+{
+    uint8_t* p_data;
+    uint8_t length;
+};
 
 struct Queue_Buffer
 {
-    uint8_t buffer[SIZE_QUEUE][SIZE_BUFFER];
-    uint8_t* queue[SIZE_QUEUE]; 
+    uint8_t buffer_pool[SIZE_QUEUE][SIZE_BUFFER];
+    struct Buffer* queue[SIZE_QUEUE]; 
+
     uint8_t idx_front;
     uint8_t idx_tail;
 
@@ -19,8 +26,6 @@ struct Queue_Buffer
     bool (*is_empty)(struct Queue_Buffer*);
     uint8_t* (*get_point)(struct Queue_Buffer*);
 };
-
-#define SIZE_QUEUE  2048
 
 void init_Queue_Buffer(struct Queue_Buffer* out_instance);
 

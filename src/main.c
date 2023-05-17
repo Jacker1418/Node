@@ -69,13 +69,6 @@
 #include "bsp_btn_ble.h"
 #include "nrf_pwr_mgmt.h"
 
-#if defined (UART_PRESENT)
-#include "nrf_uart.h"
-#endif
-#if defined (UARTE_PRESENT)
-#include "nrf_uarte.h"
-#endif
-
 #ifdef DEBUG
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -91,7 +84,7 @@
 
 #define APP_BLE_OBSERVER_PRIO           3                                           /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 
-#define APP_ADV_INTERVAL                64                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 40 ms). */
+#define APP_ADV_INTERVAL                800                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 40 ms). */
 
 #define APP_ADV_DURATION                18000                                       /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
 
@@ -120,6 +113,9 @@ static ble_uuid_t m_adv_uuids[]          =                                      
 {
     {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}
 };
+
+extern struct drv_interface insTIMER_1;
+extern struct drv_interface insTIMER_2;
 
 
 /**@brief Function for assert macro callback.
@@ -202,27 +198,26 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 
     if (p_evt->type == BLE_NUS_EVT_RX_DATA)
     {
-        uint32_t err_code;
 
         NRF_LOG_DEBUG("Received data from BLE NUS. Writing data on UART.");
         NRF_LOG_HEXDUMP_DEBUG(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
 
-        for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
-        {
-            do
-            {
-                err_code = app_uart_put(p_evt->params.rx_data.p_data[i]);
-                if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_BUSY))
-                {
-                    NRF_LOG_ERROR("Failed receiving NUS message. Error 0x%x. ", err_code);
-                    APP_ERROR_CHECK(err_code);
-                }
-            } while (err_code == NRF_ERROR_BUSY);
-        }
-        if (p_evt->params.rx_data.p_data[p_evt->params.rx_data.length - 1] == '\r')
-        {
-            while (app_uart_put('\n') == NRF_ERROR_BUSY);
-        }
+        // for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
+        // {
+        //     do
+        //     {
+        //         err_code = app_uart_put(p_evt->params.rx_data.p_data[i]);
+        //         if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_BUSY))
+        //         {
+        //             NRF_LOG_ERROR("Failed receiving NUS message. Error 0x%x. ", err_code);
+        //             APP_ERROR_CHECK(err_code);
+        //         }
+        //     } while (err_code == NRF_ERROR_BUSY);
+        // }
+        // if (p_evt->params.rx_data.p_data[p_evt->params.rx_data.length - 1] == '\r')
+        // {
+        //     while (app_uart_put('\n') == NRF_ERROR_BUSY);
+        // }
     }
 
 }
@@ -432,21 +427,43 @@ static void ble_stack_init(void)
 {
     ret_code_t err_code;
 
-    err_code = nrf_sdh_enable_request();
-    APP_ERROR_CHECK(err_code);
+        err_code = nrf_sdh_enable_request();
+        APP_ERROR_CHECK(err_code);
 
-    // Configure the BLE stack using the default settings.
-    // Fetch the start address of the application RAM.
-    uint32_t ram_start = 0;
-    err_code = nrf_sdh_ble_default_cfg_set(APP_BLE_CONN_CFG_TAG, &ram_start);
-    APP_ERROR_CHECK(err_code);
+        // Configure the BLE stack using the default settings.
+        // Fetch the start address of the application RAM.
+        uint32_t ram_start = 0;
+        err_code = nrf_sdh_ble_default_cfg_set(APP_BLE_CONN_CFG_TAG, &ram_start);
+        APP_ERROR_CHECK(err_code);
 
-    // Enable BLE stack.
-    err_code = nrf_sdh_ble_enable(&ram_start);
-    APP_ERROR_CHECK(err_code);
+        ble_cfg_t ble_cfg;
+        // Configure the GATTS attribute table.
+        memset(&ble_cfg, 0x00, sizeof(ble_cfg));
+        ble_cfg.gap_cfg.role_count_cfg.periph_role_count = NRF_SDH_BLE_PERIPHERAL_LINK_COUNT;
+        ble_cfg.gap_cfg.role_count_cfg.central_role_count = NRF_SDH_BLE_CENTRAL_LINK_COUNT;
+        //        ble_cfg.gap_cfg.role_count_cfg.qos_channel_survey_role_available = true; /* Enable channel survey role */
 
-    // Register a handler for BLE events.
-    NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
+        err_code = sd_ble_cfg_set(BLE_GAP_CFG_ROLE_COUNT, &ble_cfg, &ram_start);
+        if (err_code != NRF_SUCCESS)
+        {
+                NRF_LOG_ERROR("sd_ble_cfg_set() returned %s when attempting to set BLE_GAP_CFG_ROLE_COUNT.",
+                              nrf_strerror_get(err_code));
+        }
+
+        // Enable BLE stack.
+        err_code = nrf_sdh_ble_enable(&ram_start);
+        APP_ERROR_CHECK(err_code);
+
+        // Set the Power mode to Low power mode
+        err_code = sd_power_mode_set(NRF_POWER_MODE_CONSTLAT);//(NRF_POWER_MODE_LOWPWR);
+        APP_ERROR_CHECK(err_code);
+
+        // Enaable the DCDC Power Mode
+        err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE);
+        APP_ERROR_CHECK(err_code);
+
+        // Register a handler for BLE events.
+        NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
 }
 
 
@@ -514,97 +531,6 @@ void bsp_event_handler(bsp_event_t event)
     }
 }
 
-
-/**@brief   Function for handling app_uart events.
- *
- * @details This function will receive a single character from the app_uart module and append it to
- *          a string. The string will be be sent over BLE when the last character received was a
- *          'new line' '\n' (hex 0x0A) or if the string has reached the maximum data length.
- */
-/**@snippet [Handling the data received over UART] */
-void uart_event_handle(app_uart_evt_t * p_event)
-{
-    static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
-    static uint8_t index = 0;
-    uint32_t       err_code;
-
-    switch (p_event->evt_type)
-    {
-        case APP_UART_DATA_READY:
-            UNUSED_VARIABLE(app_uart_get(&data_array[index]));
-            index++;
-
-            if ((data_array[index - 1] == '\n') ||
-                (data_array[index - 1] == '\r') ||
-                (index >= m_ble_nus_max_data_len))
-            {
-                if (index > 1)
-                {
-                    NRF_LOG_DEBUG("Ready to send data over BLE NUS");
-                    NRF_LOG_HEXDUMP_DEBUG(data_array, index);
-
-                    do
-                    {
-                        uint16_t length = (uint16_t)index;
-                        err_code = ble_nus_data_send(&m_nus, data_array, &length, m_conn_handle);
-                        if ((err_code != NRF_ERROR_INVALID_STATE) &&
-                            (err_code != NRF_ERROR_RESOURCES) &&
-                            (err_code != NRF_ERROR_NOT_FOUND))
-                        {
-                            APP_ERROR_CHECK(err_code);
-                        }
-                    } while (err_code == NRF_ERROR_RESOURCES);
-                }
-
-                index = 0;
-            }
-            break;
-
-        case APP_UART_COMMUNICATION_ERROR:
-            APP_ERROR_HANDLER(p_event->data.error_communication);
-            break;
-
-        case APP_UART_FIFO_ERROR:
-            APP_ERROR_HANDLER(p_event->data.error_code);
-            break;
-
-        default:
-            break;
-    }
-}
-/**@snippet [Handling the data received over UART] */
-
-
-/**@brief  Function for initializing the UART module.
- */
-/**@snippet [UART Initialization] */
-static void uart_init(void)
-{
-    uint32_t                     err_code;
-    app_uart_comm_params_t const comm_params =
-    {
-        .rx_pin_no    = RX_PIN_NUMBER,
-        .tx_pin_no    = TX_PIN_NUMBER,
-        .rts_pin_no   = RTS_PIN_NUMBER,
-        .cts_pin_no   = CTS_PIN_NUMBER,
-        .flow_control = APP_UART_FLOW_CONTROL_DISABLED,
-        .use_parity   = false,
-#if defined (UART_PRESENT)
-        .baud_rate    = NRF_UART_BAUDRATE_115200
-#else
-        .baud_rate    = NRF_UARTE_BAUDRATE_115200
-#endif
-    };
-
-    APP_UART_FIFO_INIT(&comm_params,
-                       UART_RX_BUF_SIZE,
-                       UART_TX_BUF_SIZE,
-                       uart_event_handle,
-                       APP_IRQ_PRIORITY_LOWEST,
-                       err_code);
-    APP_ERROR_CHECK(err_code);
-}
-/**@snippet [UART Initialization] */
 
 
 /**@brief Function for initializing the Advertising functionality.
@@ -695,19 +621,83 @@ static void advertising_start(void)
     APP_ERROR_CHECK(err_code);
 }
 
+/**@brief Function for initializing Radio Notification Software Interrupts.
+ */
+uint32_t radio_notification_init(uint32_t irq_priority, uint8_t notification_type, uint8_t notification_distance)
+{
+    uint32_t err_code;
+
+    err_code = sd_nvic_ClearPendingIRQ(SWI1_IRQn);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
+    err_code = sd_nvic_SetPriority(SWI1_IRQn, irq_priority);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
+    err_code = sd_nvic_EnableIRQ(SWI1_IRQn);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
+    // Configure the event
+    return sd_radio_notification_cfg_set(notification_type, notification_distance);
+}
+
+/**@brief Software interrupt 1 IRQ Handler, handles radio notification interrupts.
+ */
+
+volatile bool flag = false;
+void SWI1_IRQHandler(bool radio_evt)
+{
+		flag = !flag;
+    if (flag)
+    {
+//			NRF_TIMER1->TASKS_STOP = 1;
+//			NRF_TIMER1->TASKS_CLEAR = 1;
+//			
+//			NRF_TIMER1->TASKS_START = 1;
+			
+			NRF_TIMER1->TASKS_CAPTURE[0] = 1;
+      NRF_LOG_INFO("Acitve : %d", NRF_TIMER1->CC[0]);
+    }
+		else
+		{
+			NRF_TIMER1->TASKS_STOP = 1;
+			NRF_TIMER1->TASKS_CLEAR = 1;
+			
+			NRF_TIMER1->TASKS_START = 1;
+			
+//			NRF_TIMER1->TASKS_CAPTURE[0] = 1;
+//			
+//			NRF_LOG_INFO("nAcitve : %d", NRF_TIMER1->CC[0]);
+		}
+}
 
 /**@brief Application main function.
  */
 int main(void)
 {
     // Initialize.
-    // uart_init();
-    // log_init();
     timers_init();
     init_Peripheral();
 
-    power_management_init();
+    // power_management_init();
     ble_stack_init();
+
+    NRF_TIMER1->TASKS_CLEAR  = 1;
+    NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
+    NRF_TIMER1->BITMODE		 = 3;
+    NRF_TIMER1->PRESCALER = 4;
+
+    ret_code_t err_code = radio_notification_init(3, NRF_RADIO_NOTIFICATION_TYPE_INT_ON_BOTH, NRF_RADIO_NOTIFICATION_DISTANCE_800US);
+    APP_ERROR_CHECK(err_code);
+
     gap_params_init();
     gatt_init();
     services_init();
@@ -719,7 +709,11 @@ int main(void)
     // Enter main loop.
     for (;;)
     {
-        idle_state_handle();
+        if (NRF_LOG_PROCESS() == false)
+        {
+            ret_code_t ret_code = sd_app_evt_wait();
+            ASSERT((ret_code == NRF_SUCCESS) || (ret_code == NRF_ERROR_SOFTDEVICE_NOT_ENABLED));
+        }
     }
 }
 

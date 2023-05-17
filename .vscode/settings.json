@@ -30,7 +30,9 @@
         "main.h": "c",
         "drv_peripheral.h": "c",
         "stdbool.h": "c",
-        "drv_uart.h": "c"
+        "drv_uart.h": "c",
+        "nrf_ble_gatt.h": "c",
+        "drv_timer.h": "c"
     },
     "workbench.editor.autoLockGroups": {
         "mainThreadWebview-markdown.preview": true

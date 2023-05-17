@@ -61,13 +61,28 @@ enum PIN_MAP
 };
 #endif
 
-typedef struct drv_interface
+enum PPI_CHANNEL
 {
-    void (*open)(void);
-    uint32_t (*write)(uint32_t, uint8_t*, uint32_t);
-    ret_code_t (*read)(uint32_t, uint8_t*, uint32_t*);
-    ret_code_t (*ioctrl)(uint32_t, uint8_t, uint8_t*);
-    bool (*isBusy)(void);
+    PPI_CH_UARTE_RX_WATCHDOG = 0,
+    PPI_CH_UARTE_RX_TIMEOUT,
+    PPI_CH_UARTE_RX_COUNT,
+    PPI_CH_UARTE_RX_END,
+    PPI_CH_UARTE_RX_STOP,
+    PPI_CH_UARTE_TX_END_START,
+};
+
+struct drv_interface
+{
+    bool busy;
+
+    void* instance;
+
+    void (*open)(void*, uint8_t);
+    uint32_t (*write)(void* , void*, uint32_t);
+    ret_code_t (*read)(void* , void*, uint32_t*);
+    ret_code_t (*ioctrl)(void* , uint8_t, uint8_t*);
+    bool (*isBusy)(void* );
+    void (*close)(void *);
 };
 
 #endif
