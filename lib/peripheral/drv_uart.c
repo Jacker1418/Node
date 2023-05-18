@@ -4,6 +4,7 @@
 #include "queue_buffer.h"
 
 #include "stdbool.h"
+#include "stddef.h"
 
 #ifdef DEBUG
 #include "nrf_log.h"
@@ -28,22 +29,7 @@ static ret_code_t ioctrl_UARTE(void* in_instance, uint8_t in_option, uint8_t* ou
 static bool isBusy_UARTE(void* in_instance);
 static void close_UARTE(void*);
 
-static void timeout_event_handler(NRF_TIMER_Type* in_timer)
-{
-    if(in_timer == NRF_TIMER1)
-    {
-        #ifdef DEBUG
-        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "Timer1 occur");
-        #endif
-    }
-
-    if(in_timer == NRF_TIMER2)
-    {
-        #ifdef DEBUG
-        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "Timer2 occur");
-        #endif
-    }
-}
+static void timeout_event_handler(NRF_TIMER_Type* in_timer);
 
 void init_UARTE(struct drv_interface* out_instance, void (*in_uarte_event_handler)(enum UARTE_EVENTS in_evnet, void* in_context))
 {
@@ -81,12 +67,12 @@ void init_UARTE(struct drv_interface* out_instance, void (*in_uarte_event_handle
     instance->PSEL.TXD = SERIAL_TX;
     instance->PSEL.RXD = SERIAL_RX;
 
-    instance->RXD.PTR =  queue_receive.get_point(&queue_receive);
+    instance->RXD.PTR =  queue_receive.get_point(&queue_receive)->p_data;
     instance->RXD.MAXCNT = SIZE_BUFFER;
 
     instance->CONFIG = UARTE_CONFIG_PARITIY_DISABLE | UARTE_CONFIG_FLOW_CONTROL_DISABLE;
 
-    instance->BAUDRATE = UARTE_BAUDRATE_BAUDRATE_Baud921600;
+    instance->BAUDRATE = UARTE_BAUDRATE_BAUDRATE_Baud115200;
     
     instance->INTENCLR = 0xFFFFFFFF;
 
@@ -97,71 +83,127 @@ void init_UARTE(struct drv_interface* out_instance, void (*in_uarte_event_handle
                            (UARTE_INTENSET_RXTO_Set << UARTE_INTENSET_RXTO_Pos) |
                            (UARTE_INTENSET_ERROR_Set << UARTE_INTENSET_ERROR_Pos);
 
+    instance->SHORTS = UARTE_SHORTS_ENDRX_STARTRX_Enabled << UARTE_SHORTS_ENDRX_STARTRX_Pos;
+
+    NVIC_SetPriority(UARTE0_UART0_IRQn, _PRIO_APP_HIGH);
+    NVIC_ClearPendingIRQ(UARTE0_UART0_IRQn);
+	NVIC_EnableIRQ(UARTE0_UART0_IRQn);
+
+    instance->ENABLE = UARTE_ENABLE_ENABLE_Enabled << UARTE_ENABLE_ENABLE_Pos;
+
     /* Timer 설정 */
     init_TIMER(&insTIMER_3, NRF_TIMER3, TIMER_CONFIG_MODE_TIMER_1US, timeout_event_handler);  
     init_TIMER(&insTIMER_4, NRF_TIMER4, TIMER_CONFIG_MODE_COUNTER, NULL);
 
-    NRF_PPI->CH[PPI_CH_UARTE_RX_WATCHDOG].EEP = instance + offsetof(NRF_UARTE_Type, EVENTS_RXDRDY);
-    NRF_PPI->CH[PPI_CH_UARTE_RX_WATCHDOG].TEP = insTIMER_3.instance + offsetof(NRF_TIMER_Type, TASKS_START);
-    NRF_PPI->FORK[PPI_CH_UARTE_RX_WATCHDOG].TEP = insTIMER_3.instance + offsetof(NRF_TIMER_Type, TASKS_CLEAR);
+    // PPI 설정 의심
+    // [fix] : 포인터 계산이므로 캐스팅 작업을 해야함
+    NRF_PPI->CH[PPI_CH_UARTE_RX_WATCHDOG].EEP = (uint32_t)instance + (uint32_t)offsetof(NRF_UARTE_Type, EVENTS_RXDRDY);
+    NRF_PPI->CH[PPI_CH_UARTE_RX_WATCHDOG].TEP = (uint32_t)insTIMER_3.instance + (uint32_t)offsetof(NRF_TIMER_Type, TASKS_START);
+    NRF_PPI->FORK[PPI_CH_UARTE_RX_WATCHDOG].TEP = (uint32_t)insTIMER_3.instance + (uint32_t)offsetof(NRF_TIMER_Type, TASKS_CLEAR);
 
-    NRF_PPI->CH[PPI_CH_UARTE_RX_TIMEOUT].EEP = insTIMER_3.instance + offsetof(NRF_TIMER_Type, EVENTS_COMPARE[0]);
-    NRF_PPI->CH[PPI_CH_UARTE_RX_TIMEOUT].TEP = insTIMER_3.instance + offsetof(NRF_TIMER_Type, TASKS_STOP);
-    NRF_PPI->FORK[PPI_CH_UARTE_RX_TIMEOUT].TEP = insTIMER_4.instance + offsetof(NRF_TIMER_Type, TASKS_CAPTURE[0]);
+    NRF_PPI->CH[PPI_CH_UARTE_RX_TIMEOUT].EEP = (uint32_t)insTIMER_3.instance + (uint32_t)offsetof(NRF_TIMER_Type, EVENTS_COMPARE[0]);
+    NRF_PPI->CH[PPI_CH_UARTE_RX_TIMEOUT].TEP = (uint32_t)insTIMER_3.instance + (uint32_t)offsetof(NRF_TIMER_Type, TASKS_STOP);
+    NRF_PPI->FORK[PPI_CH_UARTE_RX_TIMEOUT].TEP = (uint32_t)insTIMER_4.instance + (uint32_t)offsetof(NRF_TIMER_Type, TASKS_CAPTURE[0]);
 
-    NRF_PPI->CH[PPI_CH_UARTE_RX_COUNT].EEP = instance + offsetof(NRF_UARTE_Type, EVENTS_RXDRDY);
-    NRF_PPI->CH[PPI_CH_UARTE_RX_COUNT].TEP = insTIMER_4.instance + offsetof(NRF_TIMER_Type, TASKS_COUNT);
+    NRF_PPI->CH[PPI_CH_UARTE_RX_COUNT].EEP = (uint32_t)instance + (uint32_t)offsetof(NRF_UARTE_Type, EVENTS_RXDRDY);
+    NRF_PPI->CH[PPI_CH_UARTE_RX_COUNT].TEP = (uint32_t)insTIMER_4.instance + (uint32_t)offsetof(NRF_TIMER_Type, TASKS_COUNT);
 
-    NRF_PPI->CH[PPI_CH_UARTE_RX_END].EEP = instance + offsetof(NRF_UARTE_Type, EVENTS_ENDRX);
-    NRF_PPI->CH[PPI_CH_UARTE_RX_END].TEP = insTIMER_4.instance + offsetof(NRF_TIMER_Type, TASKS_CAPTURE[0]);
+    NRF_PPI->CH[PPI_CH_UARTE_RX_END].EEP = (uint32_t)instance + (uint32_t)offsetof(NRF_UARTE_Type, EVENTS_ENDRX);
+    NRF_PPI->CH[PPI_CH_UARTE_RX_END].TEP = (uint32_t)insTIMER_4.instance + (uint32_t)offsetof(NRF_TIMER_Type, TASKS_CAPTURE[0]);
 
-    NRF_PPI->CH[PPI_CH_UARTE_TX_END_START].EEP = instance + offsetof(NRF_UARTE_Type, EVENTS_ENDTX);
-    NRF_PPI->CH[PPI_CH_UARTE_TX_END_START].TEP = instance + offsetof(NRF_UARTE_Type, TASKS_STARTTX);
+    NRF_PPI->CH[PPI_CH_UARTE_TX_END_START].EEP = (uint32_t)instance + (uint32_t)offsetof(NRF_UARTE_Type, EVENTS_ENDTX);
+    NRF_PPI->CH[PPI_CH_UARTE_TX_END_START].TEP = (uint32_t)instance + (uint32_t)offsetof(NRF_UARTE_Type, TASKS_STARTTX);
 }
 
 static void open_UARTE(void* in_instance, uint8_t in_action)
 {
-    NRF_UARTE_Type* instance = (NRF_UARTE_Type *)in_instance;
+    if(in_instance == NULL)
+    {
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "init_TIMER() invalid parameter : out_instance is NULL");
+        #endif
+
+        return;
+    }
+
+    struct drv_interface *insUARTE = (struct drv_interface *)in_instance;
+    NRF_UARTE_Type* instance = (NRF_UARTE_Type *)insUARTE->instance;
 
     instance->EVENTS_ENDRX = 0;
     instance->EVENTS_RXSTARTED = 0;
+    // instance->EVENTS_RXDRDY = 0;
 
-    instance->SHORTS = UARTE_SHORTS_ENDRX_STARTRX_Enabled << UARTE_SHORTS_ENDRX_STARTRX_Pos;
+    NRF_PPI->CHENSET =  PPI_CHENSET_CH0_Set << PPI_CH_UARTE_RX_WATCHDOG | 
+                        PPI_CHENSET_CH0_Set << PPI_CH_UARTE_RX_TIMEOUT |
+                        PPI_CHENSET_CH0_Set << PPI_CH_UARTE_RX_COUNT |
+                        PPI_CHENSET_CH0_Set << PPI_CH_UARTE_RX_END;
 
-    instance->ENABLE = UARTE_ENABLE_ENABLE_Enabled << UARTE_ENABLE_ENABLE_Pos;
-
-    NRF_PPI->CHENSET = PPI_CHENSET_CH0_Set << PPI_CH_UARTE_RX_WATCHDOG;
-    NRF_PPI->CHENSET = PPI_CHENSET_CH0_Set << PPI_CH_UARTE_RX_TIMEOUT;
-
+    insTIMER_3.open(&insTIMER_3, TIMER_PREPARE);
     insTIMER_4.open(&insTIMER_4, TIMER_PREPARE);
-
-    NVIC_SetPriority(UARTE0_UART0_IRQn, _PRIO_APP_HIGH);
-	NVIC_EnableIRQ(UARTE0_UART0_IRQn);
 
 	instance->TASKS_STARTRX = 1;
 }
 
 static uint32_t write_UARTE(void* in_instance, void* in_data, uint16_t in_length)
 {
-    if(in_instance == NULL) return NRF_ERROR_INVALID_PARAM;
+    if(in_instance == NULL)
+    {
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "init_TIMER() invalid parameter : out_instance is NULL");
+        #endif
 
-    NRF_UARTE_Type* instance = (NRF_UARTE_Type *)in_instance;
+        return;
+    }
+
+    struct drv_interface *insUARTE = (struct drv_interface *)in_instance;
+    NRF_UARTE_Type* instance = insUARTE->instance;
+
+    return 0;
 }
 
 static ret_code_t read_UARTE(void* in_instance, void* out_data, uint32_t* out_length)
 {
-    if(in_instance == NULL) return NRF_ERROR_INVALID_PARAM;
-    
-    NRF_UARTE_Type* instance = (NRF_UARTE_Type *)in_instance;
+    if(in_instance == NULL)
+    {
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "init_TIMER() invalid parameter : out_instance is NULL");
+        #endif
+
+        return;
+    }
+
+    struct drv_interface *insUARTE = (struct drv_interface *)in_instance;
+    NRF_UARTE_Type* instance = insUARTE->instance;
+
+    uint8_t *data = (uint8_t *)out_data;
+
+    struct Buffer *buffer = NULL;
+    *out_length = 0;
+
+    while(queue_receive.pop(&queue_receive, buffer) == NRF_SUCCESS)
+    {
+        memcpy(&data[*out_length], buffer->p_data, buffer->length);
+        *out_length += buffer->length;
+    }
+
+    return *out_length == 0 ? NRF_SUCCESS : NRF_ERROR_RESOURCES;
 }
 
 static ret_code_t ioctrl_UARTE(void* in_instance, uint8_t in_option, uint8_t* out_result)
 {
     ret_code_t result = NRF_SUCCESS;
 
-    if(in_instance == NULL) return NRF_ERROR_INVALID_PARAM;
+    if(in_instance == NULL)
+    {
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "init_TIMER() invalid parameter : out_instance is NULL");
+        #endif
 
-    NRF_UARTE_Type* instance = (NRF_UARTE_Type *)in_instance;
+        return NRF_ERROR_INVALID_PARAM;
+    }
+
+    struct drv_interface *insUARTE = (struct drv_interface *)in_instance;
+    NRF_UARTE_Type* instance = insUARTE->instance;
 
     switch(in_option)
     {
@@ -177,16 +219,64 @@ static ret_code_t ioctrl_UARTE(void* in_instance, uint8_t in_option, uint8_t* ou
 
 static bool isBusy_UARTE(void* in_instance)
 {
-    if(in_instance == NULL) return NRF_ERROR_INVALID_PARAM;
+    bool result = false;
 
-    NRF_UARTE_Type* instance = (NRF_UARTE_Type *)in_instance;
+    if(in_instance == NULL)
+    {
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "init_TIMER() invalid parameter : out_instance is NULL");
+        #endif
+
+        return NRF_ERROR_INVALID_PARAM;
+    }
+
+    struct drv_interface *insUARTE = (struct drv_interface *)in_instance;
+    NRF_UARTE_Type* instance = insUARTE->instance;
+
+    return result;
 }
 
 static void close_UARTE(void* in_instance)
 {
-    if(in_instance == NULL) return NRF_ERROR_INVALID_PARAM;
+    if(in_instance == NULL)
+    {
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "init_TIMER() invalid parameter : out_instance is NULL");
+        #endif
 
-    NRF_UARTE_Type* instance = (NRF_UARTE_Type *)in_instance;
+        return NRF_ERROR_INVALID_PARAM;
+    }
+
+    struct drv_interface *insUARTE = (struct drv_interface *)in_instance;
+    NRF_UARTE_Type* instance = insUARTE->instance;
+}
+
+static void timeout_event_handler(NRF_TIMER_Type* in_timer)
+{
+    if(in_timer == NRF_TIMER3)
+    {
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "Timer3 occur");
+        #endif
+
+        uint8_t cntUARTE_RX = 0;
+        uint32_t length = 0;
+
+        insTIMER_4.read(&insTIMER_4, &cntUARTE_RX, &length);
+
+        struct Buffer* buffer = queue_receive.get_point(&queue_receive);
+        buffer->length = cntUARTE_RX;
+
+        ret_code_t result = queue_receive.push(&queue_receive, buffer);
+        if(result != NRF_SUCCESS)
+        {
+            #ifdef DEBUG
+            NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "EVENTS_ENDRX : push() is error");
+            #endif
+        }
+
+        NRF_UARTE0->RXD.PTR = queue_receive.get_point(&queue_receive);
+    }
 }
 
 void UARTE0_UART0_IRQHandler(void)
@@ -238,21 +328,21 @@ void UARTE0_UART0_IRQHandler(void)
     {
         NRF_UARTE0->EVENTS_ENDRX = 0;
         
-        ret_code_t result = queue_receive.push(&queue_receive, NRF_UARTE0->RXD.PTR);
+        uint8_t cntUARTE_RX = 0;
+        uint32_t length = 0;
+
+        insTIMER_4.read(&insTIMER_4, &cntUARTE_RX, &length);
+
+        struct Buffer* buffer = queue_receive.get_point(&queue_receive);
+        buffer->length = cntUARTE_RX;
+
+        ret_code_t result = queue_receive.push(&queue_receive, buffer);
         if(result != NRF_SUCCESS)
         {
             #ifdef DEBUG
             NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "EVENTS_ENDRX : push() is error");
             #endif
         }
-
-        uint8_t cnt_uarte_rx = 0;
-        uint32_t length = 0;
-        insTIMER_4.read(&insTIMER_4, &cnt_uarte_rx, &length );
-
-        #ifdef DEBUG
-        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "EVENTS_ENDRX : %d", cnt_uarte_rx );
-        #endif
     }
 
     if(NRF_UARTE0->EVENTS_RXTO)

@@ -2,6 +2,7 @@
 
 #include "drv_gpio.h"
 #include "drv_timer.h"
+#include "drv_uart.h"
 
 #ifdef DEBUG
 #include "nrf_log.h"
@@ -12,30 +13,8 @@
 #define DEBUG_LOG_TAG "peripheral"
 
 struct drv_interface GPIO;
-struct drv_interface insTIMER_1;
-struct drv_interface insTIMER_2;
 
 struct drv_interface insUARTE;
-
-volatile uint32_t cntTimer_1 = 0;
-volatile uint32_t cntTimer_2 = 0;
-
-static void timeout_event_handler(NRF_TIMER_Type* in_timer)
-{
-    if(in_timer == NRF_TIMER1)
-    {
-        #ifdef DEBUG
-        NRF_LOG_INFO("[%s] %s(%d)", DEBUG_LOG_TAG, "Timer1 occur", cntTimer_1++);
-        #endif
-    }
-
-    if(in_timer == NRF_TIMER2)
-    {
-        #ifdef DEBUG
-        NRF_LOG_INFO("[%s] %s(%d)", DEBUG_LOG_TAG, "Timer2 occur", cntTimer_2++);
-        #endif
-    }
-}
 
 /**@brief PCB's peripheral initialize
 
@@ -56,15 +35,9 @@ ret_code_t init_Peripheral(void)
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 #endif
 
-    // init_GPIO(&GPIO);
+    init_GPIO(&GPIO);
 
-    // init_UARTE(&insUARTE);
-
-    // insUARTE.open(&insUARTE, NULL);
-
-    init_TIMER(&insTIMER_1, NRF_TIMER1, TIMER_CONFIG_MODE_TIMER_1S, timeout_event_handler);
-    
-    // init_TIMER(&insTIMER_2, NRF_TIMER2, TIMER_CONFIG_MODE_TIMER_1MS, timeout_event_handler);
+    init_UARTE(&insUARTE, NULL);
 
     return result;
 }

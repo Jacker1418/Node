@@ -72,7 +72,7 @@ void init_TIMER(struct drv_interface* out_instance, NRF_TIMER_Type* in_timer, en
             
             instance->MODE =  TIMER_MODE_MODE_Counter;
             instance->BITMODE =  NRF_TIMER_BIT_WIDTH_32;
-            instance->PRESCALER = NRF_TIMER_FREQ_16MHz;
+            // instance->PRESCALER = NRF_TIMER_FREQ_16MHz;
         break;
 
         case TIMER_CONFIG_MODE_TIMER_1US:
@@ -81,8 +81,8 @@ void init_TIMER(struct drv_interface* out_instance, NRF_TIMER_Type* in_timer, en
             instance->BITMODE =  NRF_TIMER_BIT_WIDTH_32;
             instance->PRESCALER = NRF_TIMER_FREQ_1MHz;
 
-            // 100us Timer
-            instance->CC[0] = 100;
+            // 200us Timer
+            instance->CC[0] = 200;
         break;
 
         case TIMER_CONFIG_MODE_TIMER_1MS:
@@ -102,7 +102,7 @@ void init_TIMER(struct drv_interface* out_instance, NRF_TIMER_Type* in_timer, en
             instance->PRESCALER = NRF_TIMER_FREQ_31250Hz;
 
             // 1s Timer
-            instance->CC[0] = 31250 * 1;
+            instance->CC[0] = 31250 * 10;
         break;
 
         default:
@@ -131,13 +131,17 @@ static void open_TIMER(void *in_instance, uint8_t in_action)
     instance->TASKS_STOP = 1;
     instance->TASKS_CLEAR = 1;
 
-    instance->SHORTS = 1;
     instance->INTENSET	= (1<<16);
 
     NVIC_SetPriority(nrfx_get_irq_number(instance), _PRIO_APP_LOW);
     NVIC_EnableIRQ(nrfx_get_irq_number(instance));
 
     if(in_action == TIMER_ON)
+    {
+        instance->SHORTS = 1;
+        instance->TASKS_START = 1;
+    }
+    else if(in_action == TIMER_PREPARE && instance->MODE == TIMER_MODE_MODE_Counter)
     {
         instance->TASKS_START = 1;
     }
@@ -150,7 +154,7 @@ static ret_code_t read_TIMER(void* in_instance , void* out_buffer, uint32_t* out
 
     struct drv_interface *insTimer = (struct drv_interface *)in_instance;
     
-    NRF_TIMER_Type* instance = insTimer->instance;
+    NRF_TIMER_Type* instance = (NRF_TIMER_Type *)insTimer->instance;
 
     uint8_t *data = (uint8_t *)out_buffer;
 

@@ -12,16 +12,24 @@ static ret_code_t push_queue(struct Queue_Buffer* in_out_instance, struct Buffer
 static ret_code_t pop_queue(struct Queue_Buffer* in_out_instance, struct Buffer* out_buffer);
 static bool is_full_queue(struct Queue_Buffer* in_instance);
 static bool is_empty_queue(struct Queue_Buffer* in_instance);
-static uint8_t* get_point_buffer(struct Queue_Buffer* in_instance);
+static struct Buffer* get_point_buffer(struct Queue_Buffer* in_instance);
 
 void init_Queue_Buffer(struct Queue_Buffer* out_instance)
 {
-    
+    if(out_instance == NULL)
+    {
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "init_Queue_Buffer() : out_instance is NULL");
+        #endif
+    }
+
     for(uint8_t index = 0; index < SIZE_QUEUE; index++)
     {
         out_instance->queue[index] = NULL;
     }
     
+    out_instance->currentBuffer = NULL;
+
     out_instance->idx_front = 0;
     out_instance->idx_tail = 0;
 
@@ -42,9 +50,13 @@ static ret_code_t push_queue(struct Queue_Buffer* in_out_instance, struct Buffer
     {
         in_out_instance->queue[*idx_tail] = in_buffer;
         *idx_tail = (*idx_tail + 1) % SIZE_QUEUE;
+
+        in_out_instance->currentBuffer = in_out_instance->queue[*idx_tail];
     }
     else
     {
+        result = NRF_ERROR_RESOURCES;
+
         #ifdef DEBUG
         NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "push_queue() : Queue is full");
         #endif
@@ -63,9 +75,13 @@ static ret_code_t pop_queue(struct Queue_Buffer* in_out_instance, struct Buffer*
     {
         out_buffer = in_out_instance->queue[*idx_front];
         *idx_front = (*idx_front + 1) % SIZE_QUEUE;
+
+        in_out_instance->currentBuffer = in_out_instance->queue[*idx_front];
     }
     else
     {
+        result = NRF_ERROR_RESOURCES;
+
         #ifdef DEBUG
         NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "push_queue() : Queue is full");
         #endif
@@ -90,18 +106,7 @@ static bool is_empty_queue(struct Queue_Buffer* in_instance)
     return front == tail;
 }
 
-static uint8_t* get_point_buffer(struct Queue_Buffer* in_instance)
+static struct Buffer* get_point_buffer(struct Queue_Buffer* in_instance)
 {
-    uint8_t* addr_buffer = NULL;
-
-    if(is_full_queue(in_instance))
-    {
-        addr_buffer = NULL;
-    }
-    else
-    {
-        addr_buffer = in_instance->buffer_pool[in_instance->idx_tail];
-    }
-
-    return addr_buffer;
+    return in_instance->currentBuffer;
 } 

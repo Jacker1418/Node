@@ -14,17 +14,18 @@ struct Buffer
 
 struct Queue_Buffer
 {
-    uint8_t buffer_pool[SIZE_QUEUE][SIZE_BUFFER];
+    struct Buffer buffer_pool[SIZE_QUEUE][SIZE_BUFFER];
+    struct Buffer* currentBuffer;
     struct Buffer* queue[SIZE_QUEUE]; 
 
     uint8_t idx_front;
     uint8_t idx_tail;
 
-    ret_code_t (*push)(struct Queue_Buffer*, uint8_t*);
-    ret_code_t (*pop)(struct Queue_Buffer*, uint8_t*);
+    ret_code_t (*push)(struct Queue_Buffer*, struct Buffer*);
+    ret_code_t (*pop)(struct Queue_Buffer*, struct Buffer*);
     bool (*is_full)(struct Queue_Buffer*);
     bool (*is_empty)(struct Queue_Buffer*);
-    uint8_t* (*get_point)(struct Queue_Buffer*);
+    struct Buffer* (*get_point)(struct Queue_Buffer*);
 };
 
 void init_Queue_Buffer(struct Queue_Buffer* out_instance);

@@ -73,6 +73,8 @@
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
+
+#define DEBUG_LOG_TAG                   "MAIN"
 #endif
 
 #include "drv_peripheral.h"
@@ -116,9 +118,9 @@ static ble_uuid_t m_adv_uuids[]          =                                      
     {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}
 };
 
-extern struct drv_interface insTIMER_1;
-extern struct drv_interface insTIMER_2;
+struct drv_interface insTIMER_1;
 
+extern struct drv_interface insUARTE;
 
 /**@brief Function for assert macro callback.
  *
@@ -665,7 +667,10 @@ void SWI1_IRQHandler(bool radio_evt)
         // NRF_TIMER1->TASKS_START = 1;
         // NRF_TIMER1->TASKS_CAPTURE[0] = 1;
         // NRF_LOG_INFO("Acitve : %d", NRF_TIMER1->CC[0]);
-        NRF_LOG_INFO("Acitve");
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "Active");
+        #endif
+        
     }
     else
     {
@@ -674,7 +679,32 @@ void SWI1_IRQHandler(bool radio_evt)
         // NRF_TIMER1->TASKS_START = 1;
         // NRF_TIMER1->TASKS_CAPTURE[0] = 1;
         // NRF_LOG_INFO("nAcitve : %d", NRF_TIMER1->CC[0]);
-        NRF_LOG_INFO("nAcitve");
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "nActive");
+        #endif
+    }
+}
+
+static uint8_t buffer[256] = {0,};
+static volatile uint32_t length = 0;
+
+static void timeout_event_handler(NRF_TIMER_Type* in_timer)
+{
+    if(in_timer == NRF_TIMER1)
+    {
+        ret_code_t result = insUARTE.read(&insUARTE, buffer, &length);
+        if(result != NRF_SUCCESS)
+        {
+            #ifdef DEBUG
+            NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "insUARTE.read() is error");
+            #endif
+        }
+        else
+        {
+            #ifdef DEBUG
+            NRF_LOG_HEXDUMP_INFO(buffer, length);
+            #endif
+        }
     }
 }
 
@@ -705,9 +735,12 @@ int main(void)
 
     advertising_start();
 
-    NRF_LOG_INFO("Program Start");
-
+    init_TIMER(&insTIMER_1, NRF_TIMER1, TIMER_CONFIG_MODE_TIMER_1S, timeout_event_handler);
     insTIMER_1.open(&insTIMER_1, TIMER_ON);
+
+    insUARTE.open(&insUARTE, NULL);
+
+    NRF_LOG_INFO("Program Start");
 
     // Enter main loop.
     for (;;)
