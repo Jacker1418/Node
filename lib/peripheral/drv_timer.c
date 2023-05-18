@@ -57,8 +57,8 @@ void init_TIMER(struct drv_interface* out_instance, NRF_TIMER_Type* in_timer, en
 
         return;
     }
-    timer_event_handler[index] = in_event_handler;
 
+    timer_event_handler[index] = in_event_handler;
 
     out_instance->instance = in_timer;
     NRF_TIMER_Type* instance = out_instance->instance; 
@@ -123,8 +123,10 @@ static void open_TIMER(void *in_instance, uint8_t in_action)
 
         return;
     }
+
+    struct drv_interface *insTimer = (struct drv_interface *)in_instance;
     
-    NRF_TIMER_Type* instance = (NRF_TIMER_Type *) in_instance;
+    NRF_TIMER_Type* instance = insTimer->instance;
 
     instance->TASKS_STOP = 1;
     instance->TASKS_CLEAR = 1;
@@ -146,7 +148,9 @@ static ret_code_t read_TIMER(void* in_instance , void* out_buffer, uint32_t* out
 {
     ret_code_t result = NRF_SUCCESS;
 
-    NRF_TIMER_Type* instance = (NRF_TIMER_Type *)in_instance;
+    struct drv_interface *insTimer = (struct drv_interface *)in_instance;
+    
+    NRF_TIMER_Type* instance = insTimer->instance;
 
     uint8_t *data = (uint8_t *)out_buffer;
 

@@ -77,6 +77,8 @@
 
 #include "drv_peripheral.h"
 
+#include "drv_timer.h"
+
 #define APP_BLE_CONN_CFG_TAG            1                                           /**< A tag identifying the SoftDevice BLE configuration. */
 
 #define DEVICE_NAME                     "Nordic_UART"                               /**< Name of device. Will be included in the advertising data. */
@@ -658,25 +660,22 @@ void SWI1_IRQHandler(bool radio_evt)
 		flag = !flag;
     if (flag)
     {
-//			NRF_TIMER1->TASKS_STOP = 1;
-//			NRF_TIMER1->TASKS_CLEAR = 1;
-//			
-//			NRF_TIMER1->TASKS_START = 1;
-			
-			NRF_TIMER1->TASKS_CAPTURE[0] = 1;
-      NRF_LOG_INFO("Acitve : %d", NRF_TIMER1->CC[0]);
+        // NRF_TIMER1->TASKS_STOP = 1;
+        // NRF_TIMER1->TASKS_CLEAR = 1;
+        // NRF_TIMER1->TASKS_START = 1;
+        // NRF_TIMER1->TASKS_CAPTURE[0] = 1;
+        // NRF_LOG_INFO("Acitve : %d", NRF_TIMER1->CC[0]);
+        NRF_LOG_INFO("Acitve");
     }
-		else
-		{
-			NRF_TIMER1->TASKS_STOP = 1;
-			NRF_TIMER1->TASKS_CLEAR = 1;
-			
-			NRF_TIMER1->TASKS_START = 1;
-			
-//			NRF_TIMER1->TASKS_CAPTURE[0] = 1;
-//			
-//			NRF_LOG_INFO("nAcitve : %d", NRF_TIMER1->CC[0]);
-		}
+    else
+    {
+        // NRF_TIMER1->TASKS_STOP = 1;
+        // NRF_TIMER1->TASKS_CLEAR = 1;
+        // NRF_TIMER1->TASKS_START = 1;
+        // NRF_TIMER1->TASKS_CAPTURE[0] = 1;
+        // NRF_LOG_INFO("nAcitve : %d", NRF_TIMER1->CC[0]);
+        NRF_LOG_INFO("nAcitve");
+    }
 }
 
 /**@brief Application main function.
@@ -690,13 +689,13 @@ int main(void)
     // power_management_init();
     ble_stack_init();
 
-    NRF_TIMER1->TASKS_CLEAR  = 1;
-    NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
-    NRF_TIMER1->BITMODE		 = 3;
-    NRF_TIMER1->PRESCALER = 4;
+    // NRF_TIMER1->TASKS_CLEAR  = 1;
+    // NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
+    // NRF_TIMER1->BITMODE		 = 3;
+    // NRF_TIMER1->PRESCALER = 4;
 
-    ret_code_t err_code = radio_notification_init(3, NRF_RADIO_NOTIFICATION_TYPE_INT_ON_BOTH, NRF_RADIO_NOTIFICATION_DISTANCE_800US);
-    APP_ERROR_CHECK(err_code);
+    // ret_code_t err_code = radio_notification_init(3, NRF_RADIO_NOTIFICATION_TYPE_INT_ON_BOTH, NRF_RADIO_NOTIFICATION_DISTANCE_800US);
+    // APP_ERROR_CHECK(err_code);
 
     gap_params_init();
     gatt_init();
@@ -706,13 +705,17 @@ int main(void)
 
     advertising_start();
 
+    NRF_LOG_INFO("Program Start");
+
+    insTIMER_1.open(&insTIMER_1, TIMER_ON);
+
     // Enter main loop.
     for (;;)
     {
         if (NRF_LOG_PROCESS() == false)
         {
-            ret_code_t ret_code = sd_app_evt_wait();
-            ASSERT((ret_code == NRF_SUCCESS) || (ret_code == NRF_ERROR_SOFTDEVICE_NOT_ENABLED));
+            // ret_code_t ret_code = sd_app_evt_wait();
+            // ASSERT((ret_code == NRF_SUCCESS) || (ret_code == NRF_ERROR_SOFTDEVICE_NOT_ENABLED));
         }
     }
 }
