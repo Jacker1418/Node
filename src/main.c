@@ -682,9 +682,28 @@ void SWI1_IRQHandler(bool radio_evt)
     }
 }
 
+uint8_t data[1024];
+uint32_t length = 0;
+
 static void timeout_event_handler(NRF_TIMER_Type* in_timer)
 {
-
+    if(in_timer == NRF_TIMER1)
+    {
+        ret_code_t result = insUARTE.read(&insUARTE, data, &length);
+        if(result != NRF_SUCCESS)
+        {
+            #ifdef DEBUG
+            NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "timeout_event_handler() : None Data");
+            #endif
+        }
+        else
+        {
+            #ifdef DEBUG
+            NRF_LOG_INFO("[%s] %s (%d)", DEBUG_LOG_TAG, "timeout_event_handler() : Data", length);
+            NRF_LOG_HEXDUMP_INFO(data, length);
+            #endif
+        }
+    }
 }
 
 /**@brief Application main function.
@@ -719,16 +738,14 @@ int main(void)
 
     insUARTE.open(&insUARTE, NULL);
 
-    NRF_LOG_INFO("Program Start");
+    #ifdef DEBUG
+    NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "Program Start");
+    #endif
 
     // Enter main loop.
     for (;;)
     {
-        if (NRF_LOG_PROCESS() == false)
-        {
-            // ret_code_t ret_code = sd_app_evt_wait();
-            // ASSERT((ret_code == NRF_SUCCESS) || (ret_code == NRF_ERROR_SOFTDEVICE_NOT_ENABLED));
-        }
+        NRF_LOG_FLUSH();
     }
 }
 

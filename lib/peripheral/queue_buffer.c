@@ -68,7 +68,7 @@ static ret_code_t push_queue(struct Queue_Buffer* in_out_instance, uint8_t* in_d
 
     if(!in_out_instance->is_full(in_out_instance))
     {
-        in_out_instance->queue[idxTail].data = in_data[idxLastReceive];
+        in_out_instance->queue[idxTail].data = &in_data[idxLastReceive];
         in_out_instance->queue[idxTail].length = in_length;
 
         idxLastReceive = (idxLastReceive + in_length) % SIZE_ROW_BUFFER;
@@ -76,6 +76,7 @@ static ret_code_t push_queue(struct Queue_Buffer* in_out_instance, uint8_t* in_d
 
         in_out_instance->idxTail = idxTail;
         in_out_instance->idxLastReceive = idxLastReceive;
+        
     }
     else
     {
@@ -158,15 +159,19 @@ static bool is_empty_queue(struct Queue_Buffer* in_instance)
     uint8_t front = in_instance->idxFront;
     uint8_t tail = in_instance->idxTail;
 
-    #ifdef DEBUG
-    NRF_LOG_INFO("[%s] %d, %d", DEBUG_LOG_TAG, front, tail);
-    #endif
+    // #ifdef DEBUG
+    // NRF_LOG_INFO("[%s] %d, %d", DEBUG_LOG_TAG, front, tail);
+    // #endif
 
     return front == tail;
 }
 
 static uint8_t* next_point_buffer(struct Queue_Buffer* in_out_instance)
 {
+    // #ifdef DEBUG
+    // NRF_LOG_INFO("[%s] %d", DEBUG_LOG_TAG, in_out_instance->idxBuffer);
+    // #endif
+
     in_out_instance->idxBuffer = (in_out_instance->idxBuffer + 1) % SIZE_COL_BUFFER;
 
     return in_out_instance->buffer_pool[in_out_instance->idxBuffer];

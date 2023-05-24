@@ -181,11 +181,6 @@ static ret_code_t read_UARTE(void* in_instance, void* out_data, uint32_t* out_le
     {
         memcpy(&data[*out_length], tempData, tempLength);
         *out_length += tempLength;
-
-        #ifdef DEBUG
-        NRF_LOG_INFO("[%s] %08X, %d", DEBUG_LOG_TAG, tempData, tempLength);
-        NRF_LOG_HEXDUMP_INFO(tempData, tempLength);
-        #endif
     }
 
     return *out_length != 0 ? NRF_SUCCESS : NRF_ERROR_RESOURCES;
@@ -253,6 +248,7 @@ static void close_UARTE(void* in_instance)
     NRF_UARTE_Type* instance = insUARTE->instance;
 }
 
+
 static void uarte_timeout_event_handler(NRF_TIMER_Type* in_timer)
 {
     if(in_timer == NRF_TIMER3)
@@ -273,7 +269,7 @@ static void uarte_timeout_event_handler(NRF_TIMER_Type* in_timer)
         if(result != NRF_SUCCESS)
         {
             #ifdef DEBUG
-            NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "EVENTS_ENDRX : push() is error");
+            NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "uarte_timeout_event_handler : push() is error");
             #endif
         }
     }
@@ -321,19 +317,22 @@ void UARTE0_UART0_IRQHandler(void)
     {
         NRF_UARTE0->EVENTS_RXSTARTED = 0;
     
-        NRF_UARTE0->RXD.PTR = queue_receive.next_point(&queue_receive);
+        NRF_UARTE0->RXD.PTR = queue_receive.get_point(&queue_receive);
         NRF_UARTE0->RXD.MAXCNT = SIZE_ROW_BUFFER;
     }
     
     if(NRF_UARTE0->EVENTS_ENDRX)
     {
         NRF_UARTE0->EVENTS_ENDRX = 0;
+
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "EVENTS_ENDRX");
+        #endif
         
         uint8_t cntUARTE_RX = 0;
         uint32_t length = 0;
 
         insTIMER_4.read(&insTIMER_4, &cntUARTE_RX, &length);
-
         insTIMER_4.open(&insTIMER_4, TIMER_PREPARE);
 
         uint8_t* data = queue_receive.get_point(&queue_receive);
@@ -345,6 +344,8 @@ void UARTE0_UART0_IRQHandler(void)
             NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "EVENTS_ENDRX : push() is error");
             #endif
         }
+
+        queue_receive.next_point(&queue_receive);
     }
 
     if(NRF_UARTE0->EVENTS_RXTO)

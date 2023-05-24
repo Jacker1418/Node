@@ -25,7 +25,7 @@ struct Queue_Buffer
     uint8_t idxFront;
     uint8_t idxTail;
 
-    ret_code_t (*push)(struct Queue_Buffer*, uint8_t*, uint32_t*);
+    ret_code_t (*push)(struct Queue_Buffer*, uint8_t*, uint32_t);
     ret_code_t (*pop)(struct Queue_Buffer*, uint8_t*, uint32_t*);
     bool (*is_full)(struct Queue_Buffer*);
     bool (*is_empty)(struct Queue_Buffer*);
