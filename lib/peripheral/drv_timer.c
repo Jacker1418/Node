@@ -13,6 +13,7 @@ static void (*timer_event_handler[4])(NRF_TIMER_Type* in_timer) = {0,};
 
 static void open_TIMER(void *in_instance,uint8_t in_action);
 static ret_code_t read_TIMER(void* , void*, uint32_t*); 
+static ret_code_t ioctrl_TIMER(void*, uint8_t, uint8_t*);
 static void close_TIMER(void *in_instance);
 
 void init_TIMER(struct drv_interface* out_instance, NRF_TIMER_Type* in_timer, enum TIMER_CONFIG_MODE in_mode, void (*in_event_handler)(NRF_TIMER_Type* in_timer))
@@ -26,12 +27,14 @@ void init_TIMER(struct drv_interface* out_instance, NRF_TIMER_Type* in_timer, en
         return;
     }
 
+    out_instance->state = in_mode;
+
     out_instance->busy = false;
 
     out_instance->open = open_TIMER;
     out_instance->read = read_TIMER;
     out_instance->write = NULL;
-    out_instance->ioctrl = NULL;
+    out_instance->ioctrl = ioctrl_TIMER;
     out_instance->close = close_TIMER;
 
     if(in_timer == NULL || in_timer == NRF_TIMER0)
@@ -57,8 +60,8 @@ void init_TIMER(struct drv_interface* out_instance, NRF_TIMER_Type* in_timer, en
 
         return;
     }
-
     timer_event_handler[index] = in_event_handler;
+
 
     out_instance->instance = in_timer;
     NRF_TIMER_Type* instance = out_instance->instance; 
@@ -72,7 +75,7 @@ void init_TIMER(struct drv_interface* out_instance, NRF_TIMER_Type* in_timer, en
             
             instance->MODE =  TIMER_MODE_MODE_Counter;
             instance->BITMODE =  NRF_TIMER_BIT_WIDTH_32;
-            // instance->PRESCALER = NRF_TIMER_FREQ_16MHz;
+            instance->PRESCALER = NRF_TIMER_FREQ_16MHz;
         break;
 
         case TIMER_CONFIG_MODE_TIMER_1US:
@@ -123,7 +126,6 @@ static void open_TIMER(void *in_instance, uint8_t in_action)
 
         return;
     }
-
     struct drv_interface *insTimer = (struct drv_interface *)in_instance;
     
     NRF_TIMER_Type* instance = insTimer->instance;
@@ -152,6 +154,15 @@ static ret_code_t read_TIMER(void* in_instance , void* out_buffer, uint32_t* out
 {
     ret_code_t result = NRF_SUCCESS;
 
+    if(in_instance == NULL)
+    {
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "open_TIMER() invalid parameter : instance is NULL");
+        #endif
+
+        return NRF_ERROR_INVALID_PARAM;
+    }
+
     struct drv_interface *insTimer = (struct drv_interface *)in_instance;
     
     NRF_TIMER_Type* instance = (NRF_TIMER_Type *)insTimer->instance;
@@ -163,6 +174,52 @@ static ret_code_t read_TIMER(void* in_instance , void* out_buffer, uint32_t* out
     *data = instance->CC[0];
 
     *out_length = 1;
+
+    return result;
+}
+
+static ret_code_t ioctrl_TIMER(void* in_instance, uint8_t in_command, uint8_t* out_data)
+{
+    ret_code_t result = NRF_SUCCESS;
+
+    if(in_instance == NULL)
+    {
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "open_TIMER() invalid parameter : instance is NULL");
+        #endif
+
+        return NRF_ERROR_INVALID_PARAM;
+    }
+
+    struct drv_interface *insTimer = (struct drv_interface *)in_instance;
+    
+    NRF_TIMER_Type* instance = (NRF_TIMER_Type *)insTimer->instance;
+
+    switch(in_command)
+    {
+        case TIMER_COMMAND_CAPTURE:
+
+        break;
+
+        case TIMER_COMMAND_STOP:
+
+        break;
+
+        case TIMER_COMMAND_CLEAR:
+            instance->TASKS_CLEAR = 1;
+        break;
+
+        case TIMER_COMMAND_SET_TIME:
+
+        break;
+
+        default:
+        #ifdef DEBUG
+        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "open_TIMER() invalid parameter : instance is NULL");
+        #endif
+
+        result = NRF_ERROR_INVALID_FLAGS;
+    }
 
     return result;
 }

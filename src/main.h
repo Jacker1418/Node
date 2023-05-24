@@ -75,12 +75,14 @@ struct drv_interface
 {
     bool busy;
 
+    uint8_t state;
+
     void* instance;
 
     void (*open)(void*, uint8_t);
     uint32_t (*write)(void* , void*, uint32_t);
     ret_code_t (*read)(void* , void*, uint32_t*);
-    ret_code_t (*ioctrl)(void* , uint8_t, uint8_t*);
+    ret_code_t (*ioctrl)(void*, uint8_t, uint8_t*);
     bool (*isBusy)(void* );
     void (*close)(void *);
 };

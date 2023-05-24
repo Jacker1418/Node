@@ -667,10 +667,9 @@ void SWI1_IRQHandler(bool radio_evt)
         // NRF_TIMER1->TASKS_START = 1;
         // NRF_TIMER1->TASKS_CAPTURE[0] = 1;
         // NRF_LOG_INFO("Acitve : %d", NRF_TIMER1->CC[0]);
-        #ifdef DEBUG
-        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "Active");
-        #endif
-        
+        // #ifdef DEBUG
+        // NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "Active");
+        // #endif
     }
     else
     {
@@ -678,34 +677,14 @@ void SWI1_IRQHandler(bool radio_evt)
         // NRF_TIMER1->TASKS_CLEAR = 1;
         // NRF_TIMER1->TASKS_START = 1;
         // NRF_TIMER1->TASKS_CAPTURE[0] = 1;
+        
         // NRF_LOG_INFO("nAcitve : %d", NRF_TIMER1->CC[0]);
-        #ifdef DEBUG
-        NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "nActive");
-        #endif
     }
 }
 
-static uint8_t buffer[256] = {0,};
-static volatile uint32_t length = 0;
-
 static void timeout_event_handler(NRF_TIMER_Type* in_timer)
 {
-    if(in_timer == NRF_TIMER1)
-    {
-        ret_code_t result = insUARTE.read(&insUARTE, buffer, &length);
-        if(result != NRF_SUCCESS)
-        {
-            #ifdef DEBUG
-            NRF_LOG_INFO("[%s] %s", DEBUG_LOG_TAG, "insUARTE.read() is error");
-            #endif
-        }
-        else
-        {
-            #ifdef DEBUG
-            NRF_LOG_HEXDUMP_INFO(buffer, length);
-            #endif
-        }
-    }
+
 }
 
 /**@brief Application main function.
