@@ -15,3 +15,4 @@
  * 
  * @note
  */
+void init_ble_advertiser(void);

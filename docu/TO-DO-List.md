@@ -74,7 +74,7 @@
    - uuid or device name으로 filtering 설정 [링크](https://jimmywongiot.com/2021/01/05/ble-scan-request-filter-demo/)
    - filtering된 device 중에서 advertiser들의 packet을 packet capsule단위로 buffer에 저장
    + packet assemble 및 disassemble 함수 정의되어야 함 (무선용)
-   + Scan Request Evemt 처리 [관련 링크](https://devzone.nordicsemi.com/f/nordic-q-a/38045/s132-v6-how-to-get-ble_gap_evt_scan_req_report-event)
+   + Scan Request Event 처리 [관련 링크](https://devzone.nordicsemi.com/f/nordic-q-a/38045/s132-v6-how-to-get-ble_gap_evt_scan_req_report-event)
 - Advertiser
    - BLE의 TX 채널과 같음
    - scanner으로부터 scan request를 수신할 수 있음

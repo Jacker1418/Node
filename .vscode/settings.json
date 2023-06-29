@@ -33,7 +33,10 @@
         "drv_uart.h": "c",
         "nrf_ble_gatt.h": "c",
         "drv_timer.h": "c",
-        "queue_buffer.h": "c"
+        "queue_buffer.h": "c",
+        "string.h": "c",
+        "ble_morethings.h": "c",
+        "app_uart.h": "c"
     },
     "workbench.editor.autoLockGroups": {
         "mainThreadWebview-markdown.preview": true
