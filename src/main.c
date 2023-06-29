@@ -431,43 +431,43 @@ static void ble_stack_init(void)
 {
     ret_code_t err_code;
 
-        err_code = nrf_sdh_enable_request();
-        APP_ERROR_CHECK(err_code);
+    err_code = nrf_sdh_enable_request();
+    APP_ERROR_CHECK(err_code);
 
-        // Configure the BLE stack using the default settings.
-        // Fetch the start address of the application RAM.
-        uint32_t ram_start = 0;
-        err_code = nrf_sdh_ble_default_cfg_set(APP_BLE_CONN_CFG_TAG, &ram_start);
-        APP_ERROR_CHECK(err_code);
+    // Configure the BLE stack using the default settings.
+    // Fetch the start address of the application RAM.
+    uint32_t ram_start = 0;
+    err_code = nrf_sdh_ble_default_cfg_set(APP_BLE_CONN_CFG_TAG, &ram_start);
+    APP_ERROR_CHECK(err_code);
 
-        ble_cfg_t ble_cfg;
-        // Configure the GATTS attribute table.
-        memset(&ble_cfg, 0x00, sizeof(ble_cfg));
-        ble_cfg.gap_cfg.role_count_cfg.periph_role_count = NRF_SDH_BLE_PERIPHERAL_LINK_COUNT;
-        ble_cfg.gap_cfg.role_count_cfg.central_role_count = NRF_SDH_BLE_CENTRAL_LINK_COUNT;
-        //        ble_cfg.gap_cfg.role_count_cfg.qos_channel_survey_role_available = true; /* Enable channel survey role */
+    ble_cfg_t ble_cfg;
+    // Configure the GATTS attribute table.
+    memset(&ble_cfg, 0x00, sizeof(ble_cfg));
+    ble_cfg.gap_cfg.role_count_cfg.periph_role_count = NRF_SDH_BLE_PERIPHERAL_LINK_COUNT;
+    ble_cfg.gap_cfg.role_count_cfg.central_role_count = NRF_SDH_BLE_CENTRAL_LINK_COUNT;
+    //        ble_cfg.gap_cfg.role_count_cfg.qos_channel_survey_role_available = true; /* Enable channel survey role */
 
-        err_code = sd_ble_cfg_set(BLE_GAP_CFG_ROLE_COUNT, &ble_cfg, &ram_start);
-        if (err_code != NRF_SUCCESS)
-        {
-                NRF_LOG_ERROR("sd_ble_cfg_set() returned %s when attempting to set BLE_GAP_CFG_ROLE_COUNT.",
-                              nrf_strerror_get(err_code));
-        }
+    err_code = sd_ble_cfg_set(BLE_GAP_CFG_ROLE_COUNT, &ble_cfg, &ram_start);
+    if (err_code != NRF_SUCCESS)
+    {
+            NRF_LOG_ERROR("sd_ble_cfg_set() returned %s when attempting to set BLE_GAP_CFG_ROLE_COUNT.",
+                            nrf_strerror_get(err_code));
+    }
 
-        // Enable BLE stack.
-        err_code = nrf_sdh_ble_enable(&ram_start);
-        APP_ERROR_CHECK(err_code);
+    // Enable BLE stack.
+    err_code = nrf_sdh_ble_enable(&ram_start);
+    APP_ERROR_CHECK(err_code);
 
-        // Set the Power mode to Low power mode
-        err_code = sd_power_mode_set(NRF_POWER_MODE_CONSTLAT);//(NRF_POWER_MODE_LOWPWR);
-        APP_ERROR_CHECK(err_code);
+    // Set the Power mode to Low power mode
+    err_code = sd_power_mode_set(NRF_POWER_MODE_CONSTLAT);//(NRF_POWER_MODE_LOWPWR);
+    APP_ERROR_CHECK(err_code);
 
-        // Enaable the DCDC Power Mode
-        err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE);
-        APP_ERROR_CHECK(err_code);
+    // Enaable the DCDC Power Mode
+    err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE);
+    APP_ERROR_CHECK(err_code);
 
-        // Register a handler for BLE events.
-        NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
+    // Register a handler for BLE events.
+    NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
 }
 
 
@@ -603,7 +603,6 @@ static void power_management_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-
 /**@brief Function for handling the idle state (main loop).
  *
  * @details If there is no pending log operation, then sleep until next the next event occurs.
@@ -615,7 +614,6 @@ static void idle_state_handle(void)
         nrf_pwr_mgmt_run();
     }
 }
-
 
 /**@brief Function for starting advertising.
  */
@@ -659,7 +657,7 @@ uint32_t radio_notification_init(uint32_t irq_priority, uint8_t notification_typ
 volatile bool flag = false;
 void SWI1_IRQHandler(bool radio_evt)
 {
-		flag = !flag;
+    flag = !flag;
     if (flag)
     {
         // NRF_TIMER1->TASKS_STOP = 1;
@@ -716,11 +714,6 @@ int main(void)
 
     // power_management_init();
     ble_stack_init();
-
-    // NRF_TIMER1->TASKS_CLEAR  = 1;
-    // NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
-    // NRF_TIMER1->BITMODE		 = 3;
-    // NRF_TIMER1->PRESCALER = 4;
 
     // ret_code_t err_code = radio_notification_init(3, NRF_RADIO_NOTIFICATION_TYPE_INT_ON_BOTH, NRF_RADIO_NOTIFICATION_DISTANCE_800US);
     // APP_ERROR_CHECK(err_code);

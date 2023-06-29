@@ -1,5 +1,5 @@
-#ifndef __BLE_TIMESLOT_SCANNER_H__
-#define __BLE_TIMESLOT_SCANNER_H__
+#ifndef __BLE_SCANNER_H__
+#define __BLE_SCANNER_H__
 
 #endif
 

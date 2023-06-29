@@ -48,9 +48,17 @@
 - TIMER4 : UARTE Rx Count
 
 ### Connect
-- Connection 
+- Routing Table 
   - Connection은 Routing Table의 유무의 따라 동작 차이가 있다.
-  - 
+  - Routing Table이 없는 경우
+  - Routing Tanle이 있는 경우
+- Connection 시도
+  - Connection 요청(CON_REQ)은 Cnetral로 동작할 떄 가능하다.
+  - 우리의 Schedule상에서는 Scanner가 동작되고 있을 때, Connection을 시도할 수 있다.
+  - 그러므로 Connection을 요청하여, 수립이 된 경우에는 Connection의 Radio Evene에 맞춰 Scanner-Advertiser를 다시 Re-Scheduling해야 한다.
+  - Connection 요청이 거절된 경우에는, 거절된 시점부터 Scanner-Advertiser를 다시 Scheduling한다.
+  - 반대로 Connection 요청을 수신하는 측은 Peripheral로 동작되고 있는 Advertiser이다.
+- 
 
 ### Packet Assemble & Disassemble
 

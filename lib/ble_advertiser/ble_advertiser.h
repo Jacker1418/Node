@@ -1,5 +1,5 @@
-#ifndef __BLE_TIMESLOT_ADVERTISER_H__
-#define __BLE_TIMESLOT_ADVERTISER_H__
+#ifndef __BLE_ADVERTISER_H__
+#define __BLE_ADVERTISER_H__
 
 #endif
 
