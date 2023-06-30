@@ -75,8 +75,27 @@
    - filtering된 device 중에서 advertiser들의 packet을 packet capsule단위로 buffer에 저장
    + packet assemble 및 disassemble 함수 정의되어야 함 (무선용)
    + Scan Request Event 처리 [관련 링크](https://devzone.nordicsemi.com/f/nordic-q-a/38045/s132-v6-how-to-get-ble_gap_evt_scan_req_report-event)
+  
 - Advertiser
    - BLE의 TX 채널과 같음
    - scanner으로부터 scan request를 수신할 수 있음
    - uuid or device name으로 filtering하고 scan response 응답
    - advertiser는 2가지 packet으로 나눔 -> advertiser packet + scan response packet
+
+- BLE Parameter 관리
+  - SoftDevice 설정
+    - Central 1개 / Peripheral 1개를 기준으로 설정
+    - 이에 맞춰 RAM 사이즈 설정 
+  - GAP
+    - GAP는 Connection과 관련된 Parameter를 관리해야 한다.
+    - Connection Parameter
+      - Connection Interval : MTU 사이즈와 Packet 전송개수에 맞춰서 계산된 값을 입력
+        - 계산에 필요한 데이터는 SoftDevice Datasheet를 참고하여 설정
+      - Slave Latancy : 위와 동일하게 최대한 빠르게 Discoonection을 감지하기 위해서는 0으로 설정
+      - Supervision Timeout : 기본 예제에서는 40s로 설정되어 있으나, 설정값에 따른 영향을 확인해야 함
+    - Connection 이후 Data 통신과 관련된 Parameter도 GAP Parameter로써 관리되어야 한다.
+      - Data 통신 Parameter
+        - MTU & Data Length : Data 통신간의 Packet의 Data Payload 크기이며, Data Throughput를 위해서 MTU 247byte / Data Length 251byte 로 설정할 것이다.
+        - PHY : 
+
+  - GATT
