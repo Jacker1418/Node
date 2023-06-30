@@ -134,6 +134,8 @@ static void init_ble_gap(void)
 
 	err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
 	APP_ERROR_CHECK(err_code);
+
+    
 }
 
 static void init_ble_gatt(void)

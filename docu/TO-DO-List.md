@@ -86,6 +86,8 @@
   - SoftDevice 설정
     - Central 1개 / Peripheral 1개를 기준으로 설정
     - 이에 맞춰 RAM 사이즈 설정 
+    - Radio Notification 설정 포함
+
   - GAP
     - GAP는 Connection과 관련된 Parameter를 관리해야 한다.
     - Connection Parameter
@@ -96,6 +98,47 @@
     - Connection 이후 Data 통신과 관련된 Parameter도 GAP Parameter로써 관리되어야 한다.
       - Data 통신 Parameter
         - MTU & Data Length : Data 통신간의 Packet의 Data Payload 크기이며, Data Throughput를 위해서 MTU 247byte / Data Length 251byte 로 설정할 것이다.
-        - PHY : 
+        - PHY : 1Mbps or 2Mbps 중에서 선택하지만, BLE Throughput을 위해 2Mbps로 고정하도록 설정. 단, 선택할 수 있도록 코드 작성
+    - Parameter Update Procedure
+      - BLE Parameter Update는 상대방 Peer에 따라 달라진다
+      - Android 및 iOS는 Parameter Update 허용 가능한 순서 및 설정값이 존재하지만, 우리는 신경쓰지 않는다.
+      - Peer는 무조건 nRF52832이므로, Procedure는 우리가 정할 수 있다.
+      - Update Procedure는 2가지 시나리오가 존재한다.
+        - Connection 직후
+          - Connection 직후 바로 Update를 진행한다.
+          - Connection Interval -> MTU & Data Length -> PHY
+          - Connection Inerval은 최초 CON_REQ Packet을 전송 시, 설정값으로 포함되어 있다. 
+          - CON_REQ Packet에 포함된 Parameter : Connection Interval, Supervision Timeout, Slave Latency, Window size, Window offset값이 있다. 
+        - Data 통신 Overhead 발생
+          - Data 통신 이후 Buffer Full로 인한 Overhead가 발생할 경우, Connection Interval를 조정할 수도 있다.
+          - 이 시나리오는 아직 설계단계이며, 추후 개발 예정
+      - Nordic SDK에서는 Parameter Update 중 최초 Fail 발생 시, 
 
   - GATT
+    - GATT는 Connection 이후 Data 통신을 위해 Service와 Characteristic 설정하는 영역이다.
+    - Service
+      - Primary Service 1개만 설정
+      - UUID는 128bit 대신 32bit를 사용
+      - UUID 32bit는 등록된 UUID이지만, Advertising Packet은 Default 23byte (Payload 27byte - Header 4byte)이기 때문에, 최대한 공간 절약이 되야 한다.
+      - Scanner 및 Advertiser는 Filer를 UUID를 기준으로 동작할 것이다.
+    - Characteristic
+      - 양방향 통신을 위해 2가지 RX / TX Characteristic으로 설정한다.
+      - RX Characteristic : Peripheral -> Central 방향의 Data 통신용이며, Notify로 생성
+      - TX Characteristic : Central -> Peripheral 방향의 Data 통신용이며, Write without response로 설정
+    - Service Discovery Procedure
+      - 위 GAP에서 Parameter Update Procedure가 모두 완료된 이후, Service Discovery가 동작되며, Notification Enable도 동시에 실행한다. 
+
+## Part 04. Code
+- init_gap()
+  - GAP Parameter 관리 및 Update Procedure 동작
+  - GAP Parameter 관리 대상
+    - Connection Interval 
+    - Supervision Timeout
+    - Slave Latency
+    - MTU & Data length
+    - PHY
+  - Update Procedure
+    - Connection Interval / Supervision Timeout / Slave Latency : 최초 CON_REQ Packet에 포함되어 Peripheral에게 전달되므로 Update 완료
+    - MTU & Data length : BLE_GAP_EVT_CONNECTED Event 발생 후, MTU & Data length Update 요청
+    - PHY : MTU 및 Data length Update 완료 후 
+- init_gatt()
