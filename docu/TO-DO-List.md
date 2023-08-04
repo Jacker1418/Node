@@ -129,6 +129,14 @@
       - 위 GAP에서 Parameter Update Procedure가 모두 완료된 이후, Service Discovery가 동작되며, Notification Enable도 동시에 실행한다. 
 
 ## Part 04. Code
+- BLE Initialize 관련해서 가장 Main은 Event Handler를 하나로 통일시키는 것이다.
+- BLE Initailze에서 Event Handler 등록되는 개수는 NUS Example 기준 3개이다.
+  - 01. Connection Parameter negotiation
+  - 02. GATT (data length, MTU, PHY등) 관련 
+  - 03. NUS Service Data
+- 위 Event Handler 관련하여 하나의 통합 Event Handler로 동작되도록 해야 한다.
+- nRF SDK의 BLE Stack과 관련된 Event들은 NRF_SDH_BLE_OBSERVER() 매크로 함수를 통해 등록이 가능하다.
+- 그러므로 하나의 Event Handler에는 모든 BLE Event를 처리하는 코드가 들어가야한다.
 - init_gap()
   - GAP Parameter 관리 및 Update Procedure 동작
   - GAP Parameter 관리 대상
@@ -141,4 +149,7 @@
     - Connection Interval / Supervision Timeout / Slave Latency : 최초 CON_REQ Packet에 포함되어 Peripheral에게 전달되므로 Update 완료
     - MTU & Data length : BLE_GAP_EVT_CONNECTED Event 발생 후, MTU & Data length Update 요청
     - PHY : MTU 및 Data length Update 완료 후 
+  - Connection Parameter negotiation 처리는 Evnet Handler에서 처리
 - init_gatt()
+  - Service 등록 및 Characteristic 등록
+  - Characteristic을 통한 Data 통신은 Event Handler 및 전송 함수에서 처리

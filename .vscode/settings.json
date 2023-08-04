@@ -36,7 +36,8 @@
         "queue_buffer.h": "c",
         "string.h": "c",
         "ble_morethings.h": "c",
-        "app_uart.h": "c"
+        "app_uart.h": "c",
+        "ble_init.h": "c"
     },
     "workbench.editor.autoLockGroups": {
         "mainThreadWebview-markdown.preview": true

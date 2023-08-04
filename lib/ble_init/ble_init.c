@@ -1,4 +1,6 @@
 #include "ble_init.h"
+#include "ble.h"
+#include "ble_conn_params.h"
 
 #include <stdint.h>
 
@@ -8,6 +10,7 @@
 #include "nrf_sdh.h"
 #include "nrf_sdh_soc.h"
 #include "nrf_sdh_ble.h"
+#include "nrf_nvic.h"
 
 #define BLE_CONN_CFG_TAG            1                                               /**< A tag identifying the SoftDevice BLE configuration. */
 #define BLE_OBSERVER_PRIO           3  
@@ -35,9 +38,11 @@
 
 static void init_ble_gap(void);
 static void init_ble_gatt(void);
-static void init_ble_service(void);
 
-static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context);
+static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
+{
+    
+}
 
 void init_ble(void)
 {
@@ -88,11 +93,6 @@ void init_ble(void)
     APP_ERROR_CHECK(err_code);
 }
 
-static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
-{
-    
-}
-
 volatile bool flag = false;
 void SWI1_IRQHandler(bool radio_evt)
 {
@@ -134,19 +134,53 @@ static void init_ble_gap(void)
 
 	err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
 	APP_ERROR_CHECK(err_code);
-
-    
 }
 
 static void init_ble_gatt(void)
 {
+    ret_code_t    err_code;
+    ble_uuid_t    ble_uuid;
+    ble_uuid128_t base_uuid = BASE_UUID; 
+    uint16_t service_handle;
+	
+    err_code = sd_ble_uuid_vs_add(&base_uuid, &(p_ctx->uuid_type));
+    APP_ERROR_CHECK(err_code);
+
+    ble_uuid.type = p_ctx->uuid_type;
+    ble_uuid.uuid = BLE_UUID_SERVICE;
+
+    // Add service.
+    err_code = sd_ble_gatts_service_add(BLE_GATTS_SRVC_TYPE_PRIMARY, &ble_uuid, &service_handle);
+    APP_ERROR_CHECK(err_code);
+
+    ble_add_char_params_t add_char_params;
+   
+    // Add RX characteristic.
+    memset(&add_char_params, 0, sizeof(add_char_params));
+    add_char_params.uuid            = BLE_UUID_RX_CHARACTERISTIC;
+    add_char_params.uuid_type       = p_ctx->uuid_type;
+    add_char_params.max_len         = NRF_SDH_BLE_GATT_MAX_MTU_SIZE;
+    add_char_params.char_props.write         = 1;
+    add_char_params.char_props.write_wo_resp = 1;
+    add_char_params.read_access     = SEC_OPEN;
+    add_char_params.write_access    = SEC_OPEN;
+
+    err_code = characteristic_add(service_handle, &add_char_params, &(p_ctx->morethings_rx_handles));
+    APP_ERROR_CHECK(err_code);
+	
+	  // Add TX characteristic.
+    memset(&add_char_params, 0, sizeof(add_char_params));
+    add_char_params.uuid              = BLE_UUID_TX_CHARACTERISTIC;
+    add_char_params.uuid_type         = p_ctx->uuid_type;
+    add_char_params.max_len           = NRF_SDH_BLE_GATT_MAX_MTU_SIZE;
+    add_char_params.is_var_len        = 1;
+    add_char_params.char_props.notify = 1;
+    add_char_params.cccd_write_access = SEC_OPEN;
     
+    err_code = characteristic_add(service_handle, &add_char_params, &(p_ctx->morethings_tx_handles));
+    APP_ERROR_CHECK(err_code);
 }
 
-static void init_ble_service(void)
-{
-
-}
 
 uint32_t radio_notification_init(uint32_t irq_priority, uint8_t notification_type, uint8_t notification_distance)
 {
