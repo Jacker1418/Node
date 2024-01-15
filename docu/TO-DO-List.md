@@ -153,3 +153,90 @@
 - init_gatt()
   - Service 등록 및 Characteristic 등록
   - Characteristic을 통한 Data 통신은 Event Handler 및 전송 함수에서 처리
+
+
+## Part 05-1. BLE Stack Layer
+- NimBLE Stack Open-Source를 통해 이제는 BLE Stack을 만들 수 있다.
+- 하지만 NimBLE는 Full BLE Stack이므로, 여기서 필요한 부분만 BLE Stack으로 구현하고자 한다.
+- BLE Stack은 Host와 Controller로 나뉜다.
+  - Host
+    - Host는 nRF52832의 Physical 동작을 통해 송수신할 Data를 처리하는 Software 영역이다
+    - 크게 GAP / GATT / SM(Security) / L2CAP (Logical Link Control and Adaption)으로 나뉜다.
+    - 이 부분은 Software 영역이지만, 실제 BLE Application을 개발할 때는 뼈대가 되는 Framework이기 때문에 개발이 필요하다.
+    - 여기서 구현할 Component는 GAP / GATT / L2CAP이다
+    - GAP
+      - Logical Role를 구현하는 영역으로 Central이냐, Peripheral이냐를 결정하는 영역으로 어떻게 동작할 것인지 큰 그림의 Function Grouping하는 영역이다
+    - GATT
+      - Logical Data Communication을 구현하는 영역으로, Connection 이후 Data를 어떻게 송수신할지 구현하는 영역으로 Read, Write, WriteWithoutResponse, Notify등을 구현하고, ATT Protocol을 구현
+    - L2CAP
+      - 사실상 가장 중요한 부분으로 Controller과 상호 교류로 관리해야할 Data를 관리하는 부분이다.
+      - Low Data에 대해 Packet 관점에서 해석하고, Segmentation (재조립) / Retransmission / Flow Control / Encapsulation / Scheduling / Fragmentation 등이 주요 동작이다.
+  - Controller
+    - 실제 nRF52832에서 Data를 송수신하기 위한 Physical 동작을 담당하는 영역이다
+    - 크게 HCI(Host-Controller Interface)와 LL(Link Layer), 그리고 PHY(Physical Layer)로 나뉜다.
+    - HCI(Host-Controller Interface)
+      - 사실상 Physical 동작을 제어하기 위한 Interface이다.
+      - 이는 상위 Host와 Physical 동작을 분리시키위한 Interface이다.
+      - 그러나 실제 구현 관점에서는 nRF52832상에서만 동작할 BLE Stack을 구현하는 것이기 떄문에, Physical 동작을 제어하기 위한 직접적입 Interface로 구현할 것이다.
+    - LL (Link Layer)
+      - 가장 애매한 부분이다
+      - Physiacl 동작을 관리하는 State-Machine이다.
+      - 관리할 State는 Standy / Advertising / Scanning / Initiating / Connected이 있다.
+      - 즉 각 State별로 Physical Layer로부터 Radio 동작을 호출할 것이다.
+  
+- 그러므로 나만의 BLE Stack은 다음과 같은 구조를 갖는다.
+  - Host
+    - GAP
+      - Central 
+      - Broadcast 
+      - Peripheral 
+      - Observer
+    - GATT
+      - ATT 구현
+    - L2CAP
+      - Segmentation (재조립)
+      - Retransmission
+      - Flow Control
+      - Encapsulation
+      - Scheduling
+      - Fragmentation
+  - Controller
+    - LL
+      - Standy 
+      - Advertising
+      - Scanning
+      - Initiating
+      - Connected
+    - PHY
+      - Radio RX
+      - Radio TX
+- 위 BLE Stack 구현 우선순위는 Controller -> Host 영역으로 진행한다.
+- 가장 중요한 구현은 PHY의 RADIO RX & RADIO TX이고, 이를 관리할 LL의 State-Machine이다.
+- 이후 Test Application을 통해 동작을 확인하고, L2CAP을 통해 전체 관리를 진행
+
+## Part 05-2. PHY 및 LL Layer 구현
+- Reference로 nRF52832의 SoftDevice가 있다는 가정하에 Radio Timeslot을 이용한 Broadcaster와 Observer를 구현한 Code가 있었다.
+- 하지만 현재는 이를 Reference로 하기 어렵다.
+  - SoftDevice가 있다는 전제하에 Radio Timeslot API를 이용한다는 점
+  - BLE Connection은 SoftDevice로 처리한다는 점
+- 그러므로 일부분만 Reference로 잡을 것인데 그 부분이 Radio RX & Radio TX 부분이다.
+- 여기서 Broadcaster와 Observer의 동작을 RADIO Peripheral를 통해 직접 구현하였기 때문에, 해당 부분을 이용하여 PHY의 Radio RX & TX를 구현할 수 있다.
+- 또한, LL의 Advertising과 Scanning까지 구현되어 있기 때문에, Radio Timeslot의 구현 방식을 걷어내고 Timer 0를 직접 이용한 나만의 State별 Radio Scheduling을 구현하면 된다.
+
+- 구현 01. Advertiser
+  - Advertiser에는 기본적인 Radio TX가 주 동작이지만, Scan Request를 받기 위해 Radio RX까지 필요한 영역이다.
+  - 그러므로 먼저 Radio TX를 구현하여 Advertising이 되는지 Debugging을 하고
+  - 이후 Radio RX를 구현하여 Scan Request를 수신 후, 바로 Scan Response를 받을 수 있도록 구현하는 방향으로 간다.
+  - NimBLE 관련 Code 리스트
+    - LL(Link Layer) 관련 Code
+      - Project/nimble/controller/src 하위 폴더에 Code 존재함
+      - ble_ll_adv.c : Advertiser 관련 Code
+    - PHY(Physical Layer) 관련 Code
+      - Project/nimble/drivers/nrf5x 하위 폴더에 Code 존재함
+      - nrf52/phy_ppi.h : Radio Peripheral와 관련된 PPI 설정 Header
+      - nrf52/phy.c : Radio Peripheral와 관련된 PPI 설정 Code
+      - ble_hw.c
+      - ble_phy_trace.c
+      - ble_phy.c
+- 구현 02. Scanner
+  - 위 Advertiser를 구현한다면, Scanner는 빠르게 구현될 것이다. 

@@ -140,13 +140,15 @@ static void init_ble_gatt(void)
 {
     ret_code_t    err_code;
     ble_uuid_t    ble_uuid;
+    
+    uint8_t       uuid_type = BLE_UUID_TYPE_UNKNOWN;
     ble_uuid128_t base_uuid = BASE_UUID; 
     uint16_t service_handle;
 	
-    err_code = sd_ble_uuid_vs_add(&base_uuid, &(p_ctx->uuid_type));
+    err_code = sd_ble_uuid_vs_add(&base_uuid, &uuid_type);
     APP_ERROR_CHECK(err_code);
 
-    ble_uuid.type = p_ctx->uuid_type;
+    ble_uuid.type = uuid_type;
     ble_uuid.uuid = BLE_UUID_SERVICE;
 
     // Add service.
@@ -158,7 +160,7 @@ static void init_ble_gatt(void)
     // Add RX characteristic.
     memset(&add_char_params, 0, sizeof(add_char_params));
     add_char_params.uuid            = BLE_UUID_RX_CHARACTERISTIC;
-    add_char_params.uuid_type       = p_ctx->uuid_type;
+    add_char_params.uuid_type       = uuid_type;
     add_char_params.max_len         = NRF_SDH_BLE_GATT_MAX_MTU_SIZE;
     add_char_params.char_props.write         = 1;
     add_char_params.char_props.write_wo_resp = 1;
@@ -171,7 +173,7 @@ static void init_ble_gatt(void)
 	  // Add TX characteristic.
     memset(&add_char_params, 0, sizeof(add_char_params));
     add_char_params.uuid              = BLE_UUID_TX_CHARACTERISTIC;
-    add_char_params.uuid_type         = p_ctx->uuid_type;
+    add_char_params.uuid_type         = uuid_type;
     add_char_params.max_len           = NRF_SDH_BLE_GATT_MAX_MTU_SIZE;
     add_char_params.is_var_len        = 1;
     add_char_params.char_props.notify = 1;
