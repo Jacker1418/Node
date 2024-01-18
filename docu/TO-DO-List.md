@@ -219,7 +219,7 @@
 - 하지만 현재는 이를 Reference로 하기 어렵다.
   - SoftDevice가 있다는 전제하에 Radio Timeslot API를 이용한다는 점
   - BLE Connection은 SoftDevice로 처리한다는 점
-- 그러므로 일부분만 Reference로 잡을 것인데 그 부분이 Radio RX & Radio TX 부분이다.
+- 그러므로 일부분만 Reference로 잡을 것인데 그 부분이 Radio RX & Radio TX 부분이다.1
 - 여기서 Broadcaster와 Observer의 동작을 RADIO Peripheral를 통해 직접 구현하였기 때문에, 해당 부분을 이용하여 PHY의 Radio RX & TX를 구현할 수 있다.
 - 또한, LL의 Advertising과 Scanning까지 구현되어 있기 때문에, Radio Timeslot의 구현 방식을 걷어내고 Timer 0를 직접 이용한 나만의 State별 Radio Scheduling을 구현하면 된다.
 

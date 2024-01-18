@@ -1,4 +1,128 @@
 ## Advertiser Code 분석
+### Advertiser Code 동작 요약
+1. Packet 설정
+   1. Advertising Packet 설정
+   2. Scan Response Packet 설정
+   3. `ble_setup()`
+2. Radio Timeslot Handler 등록 
+   1. `btle_hci_adv_init(SWI0_IRQn)`
+3. Radio Timeslot 설정 후 시작
+   1. Timeslot 기간 4300us
+   2. Timeout 10000us
+   3. `timeslot_req_initial()`
+4. `NRF_RADIO_CALLBACK_SIGNAL_TYPE_START` Event 발생 
+   1. Advertiser Radio 사전 설정 
+      -  Advertiser는 Channel 37, 38, 39에 한번씩 진행하는데, 각 채널별로 TX 전송 후 Scan Request를 수신하기 위해 RX를 진행한다.
+      -  Advertiser 한번의 Event에는 Channel 37, 38, 39를 모두 진행
+      1. RADIO Power On 
+         - NRF_RADIO->POWER = 1
+      2. RADIO DISABLED Event Register Clear 
+         - NRF_RADIO->EVENTS_DISABLED = 0
+      3. Timer0 1us 단위로 설정 
+         - Clock 16MHz / 2^4 = 1MHz
+         - NRF_TIMER0->PRESCALER = 4 
+      4. Timer0 Stop Trigger 
+         - NRF_TIMER0->TASKS_STOP = 1
+      5. Radio TX Power 0dBm 설정
+         - NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_0dBm << RADIO_TXPOWER_TXPOWER_Pos)
+      6. Radio Data rate 1Mbps 설정 
+         - NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos)
+      7. Radio Frequency 2480MHz(Channel 39) 설정 
+         - NRF_RADIO->FREQUENCY = 2
+      8. Data Whitening 초기값 37 설정
+         - NRF_RADIO->DATAWHITEIV = 37
+      9. Advertiser Address 0x8E89BED600 설정
+         - NRF_RADIO->PREFIX0 = 0x8e
+         - NRF_RADIO->BASE0 = 0x89bed600 = Logical Address 0 = PREFIX0 + BASE0
+      10. 전송 Address 위 Address로 설정
+          - NRF_RADIO->TXADDRESS = 0x00
+      11. 수신 Address 설정 
+          - NRF_RADIO->RXADDRESSES = 0x01
+      12. Packet 설정 (1) 
+          - S0 Length = 1
+          - S1 Length = 2
+          - Length = 6 설정
+      13. Packet 설정 (2) 
+          - Packet Length = 37
+          - Static length = 0 
+          - Base Address length = 3 
+          - Prefix Address length 1byte 제외한 순수 Base Address 
+          - Packet Little Endian 설정
+          - Whiten Enable 설정
+      14. CRC 설정 
+          - CRC 계산에서 Address Skip
+          - CRC length 3byte 설정 = CRC24로 설정됨 
+      15. CRC Init Value = 0x555555
+      - Bluetooth Core Specification v5.2 중 3206 page
+      1.  CRC Polynomial = 0x00065B 설정
+          - X^10 + X^9 + X^6 + X^4 + X^3 + X + 1
+          - Bluetooth Core Specification V5.2 중 2923 page에서는 Polynomial이 다름
+          - X^24 + X^10 + X^9 + X^6 + X^4 + X^3 + X + 1
+      2.  Radio RX -> TX or TX -> RX로 Mode 변경 시 TIFS 145us 설정
+          - NRF_RADIO->TIFS = 145
+      3.  전송 Packet 주소 임시 초기화
+        - 임시 설정한 다음 이후 실제 전송할 Packet 주소값 설정
+        - NRF_RADIO->PACKETPTR = (uint32_t) &packet[0]  
+      4.  RADIO Peripheral 전체 Interrupt 활성화
+          - NVIC_EnableIRQ(RADIO_IRQn)
+      5.  Channel 37으로 설정
+   2.  Radio TX Trigger 전달 : PERIPHERAL_TASK_TRIGGER(NRF_RADIO->TASKS_TXEN)
+       1.  Trigger를 먼저 전달해서 Radio State가 TXRU로 가고, Ramping-up되기 전까지 나머지 설정을 진행한다.
+       2.  Advertising Packet 설정 : periph_radio_packet_ptr_set(&ble_adv_data[0])
+       3.  Radio 전송 및 Scan Request 수신을 위한 SHORT 설정 
+           - READY -> START : Radio ramping up이 완료되면 `READY` Event 발생하고, 전송 시작을 위한 `START` Trigger로 전달
+           - END -> DISABLED : Radio Packet의 마지막 Payload까지 전송 완료되면 `END` Event가 발생하고, RADIO 비활성화를 위한 `DISABLED` Trigger를 전달
+           - DISABLED -> RXEN : RADIO 비활성화가 완료되면 `DISABLED` Event가 발생하고, Scan Request 수신을 준비하기 위해 바로 `RXEN` Trigger로 전달
+           - TX 전송이 되는 DISABLED Event에서 다음 Scan Request 수신 준비를 위한 RXEN Task로 Short 연결
+       4.  RADIO Peripheral Interrupt 중 DISABLED Interrupt만 활성화
+           - Advertiser의 TX가 마무리되는 DISABLED Event를 알기 위해 Interrupt 활성화
+           - 해당 Channel에서 Advertising을 한 후, 동일한 Channel에서 Scan Request를 수신해야하므로 수신 준비해야한다.
+           - 하지만 위 SHORT 설정에서 DISABLED -> RXEN이 있기 때문에, Radio State는 바로 넘어간다.
+5.  `NRF_RADIO_CALLBACK_SIGNAL_TYPE_RADIO` Evnet 발생
+    -  위 RADIO TX를 전송하고 난 후 `DISABLED` Interrupt가 발생하므로, 해당 Event가 발생한다.
+    -  해당 Event에서는 2가지 경우를 처리한다. 
+    1. Radio TX가 마무리된 후, Scan Request 수신 준비
+      1. Radio `DISABLED` Event Clear
+         - PERIPHERAL_EVENT_CLR(NRF_RADIO->EVENTS_DISABLED)
+      2. 수신할 Packet을 저장할 Buffer 주소 설정
+         - periph_radio_packet_ptr_set(&ble_rx_buf[0])
+      3. Scan Request 수신하기 위한 SHORT 설정
+         - READY -> START : Radio ramping up이 완료되면 `READY` Event 발생하고, 수신 시작을 위한 `START` Trigger로 전달
+         - END -> DISABLED : Radio Packet의 마지막 Payload까지 수신 완료되면 `END` Event가 발생하고, RADIO 비활성화를 위한 `DISABLED` Trigger를 전달
+         - DISABLED -> TXEN : RADIO 비활성화가 완료되면 `DISABLED` Event가 발생하고, Scan Response를 전송 준비하기 위해 바로 `TXEN` Trigger로 전달
+         - ADDRESS -> RSSISTART : Radio Packet 중 Address까지 수신되고, 해당 Address가 본인 Address와 매칭된다면 `ADDRESS` Event가 발생하고, 이를 RSSI 측정되도록 `RSSISTART` Trigger로 전달
+      4. RADIO Peripheral의 `DISABLED` Interrupt 활성화
+         - periph_radio_intenset(	RADIO_INTENSET_DISABLED_Msk)
+      5. TIFS 148us 설정 
+         - periph_radio_tifs_set(148)
+      6. Timer0 200us로 설정
+         - TIMER0 Enable
+         - TIMER0 Clear 
+         - TIMER0 Compare Clear 
+         - TIMER0 Interrupt 설정 
+         - TIMER0 CC 200us 설정 
+      7. PPI 설정 
+         - RADIO `ADDRESS` Event 발생 시, TIMER0 `STOP` Trigger 전달
+         - PPI Channel 0으로 설정
+    2. Radio RX가 마무리된 후, Scan Request를 수신했다면 Scan Response를 보낼 준비
+       1. TIMER0 중지 
+       2. TIMER0 Interrupt Clear
+       3. PPI Channel 0 Event Clear
+       4. Radio `DISABLED` Event Clear
+          - PERIPHERAL_EVENT_CLR(NRF_RADIO->EVENTS_DISABLED)
+       5. Scan Resposne로 보낼 Packet Data 주소 설정
+          - periph_radio_packet_ptr_set(&ble_scan_rsp_data[0])
+       6. Scan Response 전송을 위한 SHORT 설정 
+          - READY -> START 
+          - END -> DISABLED
+       7. TIFS 150us 설정
+       8. Scan Response Packet에서 송신한 Peer Address 추출
+       9. RSSI 값 Read
+          - NRF_RADIO->EVENTS_RSSIEND = 0
+          - *rssi = NRF_RADIO->RSSISAMPLE
+       10. 해당 Channel Read
+           - *ch = (NRF_RADIO->DATAWHITEIV & 0x3F);
+
 ### main
   - sd_softdevice_enable((uint32_t)NRF_CLOCK_LFCLKSRC_XTAL_75_PPM, sd_assert_cb) [SoftDevice]
     - SoftDevice 활성화
