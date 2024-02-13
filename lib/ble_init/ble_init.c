@@ -1,211 +1,53 @@
 #include "ble_init.h"
-#include "ble.h"
-#include "ble_conn_params.h"
 
-#include <stdint.h>
-
-#include "nordic_common.h"
-#include "nrf.h"
-#include "nrf_soc.h"
-#include "nrf_sdh.h"
-#include "nrf_sdh_soc.h"
-#include "nrf_sdh_ble.h"
-#include "nrf_nvic.h"
-
-#define BLE_CONN_CFG_TAG            1                                               /**< A tag identifying the SoftDevice BLE configuration. */
-#define BLE_OBSERVER_PRIO           3  
-
-#define GAP_DEFAULT_CONN_INTERVAL	MSEC_TO_UNITS(15, UNIT_1_25_MS)
-#define GAP_MIN_CONN_INTERVAL       MSEC_TO_UNITS(15, UNIT_1_25_MS)              /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
-#define GAP_MAX_CONN_INTERVAL       MSEC_TO_UNITS(15, UNIT_1_25_MS)             		/**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
-#define GAP_SLAVE_LATENCY           0                                           		/**< Slave latency. */
-#define GAP_CONN_SUP_TIMEOUT        MSEC_TO_UNITS(4000, UNIT_10_MS)             		/**< Connection supervisory timeout (4 seconds), Supervision Timeout uses 10 ms units. */
-
-#define BLE_GAP_DATA_LENGTH_DEFAULT     27          //!< The stack's default data length.
-#define BLE_GAP_DATA_LENGTH_MAX         251         //!< Maximum data length.
-
-#define BLE_ADV_INTERVAL                		64                                          		/**< The advertising interval (in units of 0.625 ms. This value corresponds to 40 ms). */
-#define BLE_ADV_DURATION                		6000                                       		/**< The advertising duration (180 seconds) in units of 10 milliseconds. */
-
-#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(5000)                               /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
-#define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(30000)                              /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
-#define MAX_CONN_PARAMS_UPDATE_COUNT    3
-
-#define BLE_MORETHINGS_OBSERVER_PRIO     3
-
-#define OPCODE_LENGTH 1 /**< Length of opcode inside a notification. */
-#define HANDLE_LENGTH 2 /**< Length of handle inside a notification. */
-
-static void init_ble_gap(void);
-static void init_ble_gatt(void);
-
-static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
+err_code init_ble()
 {
+
+}
+
+err_code clearPDU_Header(struct pktPDU_Header* in_out_header)
+{
+    if(in_out_header == NULL) return ERROR_PARAM_NULL;
+
+    in_out_header->def = 0x60;
+    in_out_header->type = 0x00;
+    in_out_header->rxAddr = 0x00;
+    in_out_header->txAddr = 0x00;
+    in_out_header->length = SIZE_DEV_ADDR;
+
+    return ERROR_NONE;
+}
+
+err_code clearPDU_Payload(struct pktPDU_Payload* in_out_payload)
+{
+    if(in_out_payload == NULL) return ERROR_PARAM_NULL;
+
+    in_out_payload->idxAD = 0x00;
+    in_out_payload->lenPayload = 0x00;
     
+    uint32_t deviceAddress_0 = NRF_FICR->DEVICEADDR[0];
+    uint32_t deviceAddress_1 = NRF_FICR->DEVICEADDR[1];
+
+    in_out_payload->deviceAddr[0] = (uint8_t)((deviceAddress_1 & 0x0000FF00) >> 8);
+    in_out_payload->deviceAddr[1] = (uint8_t)((deviceAddress_1 & 0x000000FF));
+    in_out_payload->deviceAddr[2] = (uint8_t)((deviceAddress_0 & 0xFF000000) >> 24);
+    in_out_payload->deviceAddr[3] = (uint8_t)((deviceAddress_0 & 0x00FF0000) >> 16);
+    in_out_payload->deviceAddr[4] = (uint8_t)((deviceAddress_0 & 0x0000FF00) >> 8);
+    in_out_payload->deviceAddr[5] = (uint8_t)((deviceAddress_0 & 0x000000FF));
+
+    for(uint8_t index = 0; index < SIZE_MAX_AD; index++)
+    {
+        clearPDU_AD(in_out_payload->arrPacketAD);
+    }
+
+    return ERROR_NONE;
 }
 
-void init_ble(void)
+err_code clearPDU_AD(struct pktPDU_AD* in_out_ad)
 {
-    ret_code_t err_code;
+    if(in_out_ad == NULL) return ERROR_PARAM_NULL;
 
-    err_code = app_timer_init();
-    APP_ERROR_CHECK(err_code);
+    memset(in_out_ad, 0, sizeof(struct pktPDU_AD));
 
-    err_code = nrf_sdh_enable_request();
-    APP_ERROR_CHECK(err_code);
-
-    // Configure the BLE stack using the default settings.
-    // Fetch the start address of the application RAM.
-    uint32_t ram_start = 0;
-    err_code = nrf_sdh_ble_default_cfg_set(BLE_CONN_CFG_TAG, &ram_start);
-    APP_ERROR_CHECK(err_code);
-
-    ble_cfg_t ble_cfg;
-    // Configure the GATTS attribute table.
-    memset(&ble_cfg, 0x00, sizeof(ble_cfg));
-    ble_cfg.gap_cfg.role_count_cfg.periph_role_count = NRF_SDH_BLE_PERIPHERAL_LINK_COUNT;
-    ble_cfg.gap_cfg.role_count_cfg.central_role_count = NRF_SDH_BLE_CENTRAL_LINK_COUNT;
-    // ble_cfg.gap_cfg.role_count_cfg.qos_channel_survey_role_available = true; /* Enable channel survey role */
-
-    err_code = sd_ble_cfg_set(BLE_GAP_CFG_ROLE_COUNT, &ble_cfg, &ram_start);
-    if (err_code != NRF_SUCCESS)
-    {
-        NRF_LOG_ERROR("sd_ble_cfg_set() returned %s when attempting to set BLE_GAP_CFG_ROLE_COUNT.",
-                        nrf_strerror_get(err_code));
-    }
-
-    // Enable BLE stack.
-    err_code = nrf_sdh_ble_enable(&ram_start);
-    APP_ERROR_CHECK(err_code);
-
-    // Set the Power mode to Low power mode
-    err_code = sd_power_mode_set(NRF_POWER_MODE_CONSTLAT);//(NRF_POWER_MODE_LOWPWR);
-    APP_ERROR_CHECK(err_code);
-
-    // Enaable the DCDC Power Mode
-    err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE);
-    APP_ERROR_CHECK(err_code);
-
-    // Register a handler for BLE events.
-    NRF_SDH_BLE_OBSERVER(m_ble_observer, BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
-
-    ret_code_t err_code = radio_notification_init(BLE_OBSERVER_PRIO, NRF_RADIO_NOTIFICATION_TYPE_INT_ON_BOTH, NRF_RADIO_NOTIFICATION_DISTANCE_800US);
-    APP_ERROR_CHECK(err_code);
-}
-
-volatile bool flag = false;
-void SWI1_IRQHandler(bool radio_evt)
-{
-    flag = !flag;
-    if (flag)
-    {
-
-    }
-    else
-    {
-
-    }
-}
-
-static void init_ble_gap(void)
-{
-	ble_gap_conn_sec_mode_t sec_mode;
-	
-  	BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
-	
-	ble_gap_addr_t macAddress;
-	uint32_t err_code = sd_ble_gap_addr_get(&macAddress);
-	APP_ERROR_CHECK(err_code);
-	
-	char temp_name[50];
-	sprintf(temp_name, "moreMat_%02X%02X%02X", macAddress.addr[2], macAddress.addr[1], macAddress.addr[0]);
-	uint32_t temp_length = strlen(temp_name); 	
-	
-	err_code = sd_ble_gap_device_name_set(&sec_mode,(const uint8_t *)temp_name, temp_length);	
-	APP_ERROR_CHECK(err_code);
-
-	ble_gap_conn_params_t   gap_conn_params;
-	memset(&gap_conn_params, 0, sizeof(gap_conn_params)); 
-
-	gap_conn_params.min_conn_interval = GAP_MIN_CONN_INTERVAL;//GAP_DEFAULT_CONN_INTERVAL;
-	gap_conn_params.max_conn_interval = GAP_MAX_CONN_INTERVAL;//GAP_DEFAULT_CONN_INTERVAL;
-	gap_conn_params.slave_latency     = GAP_SLAVE_LATENCY;
-	gap_conn_params.conn_sup_timeout  = GAP_CONN_SUP_TIMEOUT;
-
-	err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
-	APP_ERROR_CHECK(err_code);
-}
-
-static void init_ble_gatt(void)
-{
-    ret_code_t    err_code;
-    ble_uuid_t    ble_uuid;
-    
-    uint8_t       uuid_type = BLE_UUID_TYPE_UNKNOWN;
-    ble_uuid128_t base_uuid = BASE_UUID; 
-    uint16_t service_handle;
-	
-    err_code = sd_ble_uuid_vs_add(&base_uuid, &uuid_type);
-    APP_ERROR_CHECK(err_code);
-
-    ble_uuid.type = uuid_type;
-    ble_uuid.uuid = BLE_UUID_SERVICE;
-
-    // Add service.
-    err_code = sd_ble_gatts_service_add(BLE_GATTS_SRVC_TYPE_PRIMARY, &ble_uuid, &service_handle);
-    APP_ERROR_CHECK(err_code);
-
-    ble_add_char_params_t add_char_params;
-   
-    // Add RX characteristic.
-    memset(&add_char_params, 0, sizeof(add_char_params));
-    add_char_params.uuid            = BLE_UUID_RX_CHARACTERISTIC;
-    add_char_params.uuid_type       = uuid_type;
-    add_char_params.max_len         = NRF_SDH_BLE_GATT_MAX_MTU_SIZE;
-    add_char_params.char_props.write         = 1;
-    add_char_params.char_props.write_wo_resp = 1;
-    add_char_params.read_access     = SEC_OPEN;
-    add_char_params.write_access    = SEC_OPEN;
-
-    err_code = characteristic_add(service_handle, &add_char_params, &(p_ctx->morethings_rx_handles));
-    APP_ERROR_CHECK(err_code);
-	
-	  // Add TX characteristic.
-    memset(&add_char_params, 0, sizeof(add_char_params));
-    add_char_params.uuid              = BLE_UUID_TX_CHARACTERISTIC;
-    add_char_params.uuid_type         = uuid_type;
-    add_char_params.max_len           = NRF_SDH_BLE_GATT_MAX_MTU_SIZE;
-    add_char_params.is_var_len        = 1;
-    add_char_params.char_props.notify = 1;
-    add_char_params.cccd_write_access = SEC_OPEN;
-    
-    err_code = characteristic_add(service_handle, &add_char_params, &(p_ctx->morethings_tx_handles));
-    APP_ERROR_CHECK(err_code);
-}
-
-
-uint32_t radio_notification_init(uint32_t irq_priority, uint8_t notification_type, uint8_t notification_distance)
-{
-    uint32_t err_code;
-
-    err_code = sd_nvic_ClearPendingIRQ(SWI1_IRQn);
-    if (err_code != NRF_SUCCESS)
-    {
-        return err_code;
-    }
-
-    err_code = sd_nvic_SetPriority(SWI1_IRQn, irq_priority);
-    if (err_code != NRF_SUCCESS)
-    {
-        return err_code;
-    }
-
-    err_code = sd_nvic_EnableIRQ(SWI1_IRQn);
-    if (err_code != NRF_SUCCESS)
-    {
-        return err_code;
-    }
-
-    // Configure the event
-    return sd_radio_notification_cfg_set(notification_type, notification_distance);
+    return ERROR_NONE;
 }

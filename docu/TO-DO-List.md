@@ -240,3 +240,194 @@
       - ble_phy.c
 - 구현 02. Scanner
   - 위 Advertiser를 구현한다면, Scanner는 빠르게 구현될 것이다. 
+
+
+## Part 05-3. RADIO TX 및 RX 동작 설정
+### 설정할 Peripheral 
+1. TIMER0
+2. RTC
+3. PPI
+4. RADIO
+
+### Packet 사전 설정
+- 아래 Packet에 대하여 일부를 제외하고, 고정된 데이터로 설정이 가능하다.
+
+- Advertiser Packet 수정사항
+  -  Payload  : Data Type에 따라 Flag / Length / Data 설정
+  -  Header   : Length 설정
+-  Scan Request Packet 수정사항
+   -  Payload : Advertiser Address 설정
+-  Scan Response Packet 수정사항
+   -  Payload : Advertiser Address 설정
+   -  Payload : Data Type에 따라 Flag / Length / Data 설정
+   -  Header  : Length 수정
+
+1. Advertising Packet 
+- Header
+   - PDU Type : ADV_IND   (0b     0000)
+   - Reserved : x         (0b   0 0000)
+   - ChSel    : 1         (0b  10 0000)
+   - TxAdd    : 1(Random) (0b 110 0000)
+   - RxAdd    : 0         (0b0110 0000)
+   - Length   : 6 + 알파   -> 알파 : 추후 Advertising Packet Data 길이를 추가해야 함
+- Payload
+  - Tx Address : 0xXX XX XX XX XX XX
+  - 필수 Generic Attribute Payload 설정
+    - Lnegth : 0x02
+    - Flag : 0x01 (Generic Attribute)
+    - Generic Attribute : 0x05
+      - Reserved : 0                                                            (0b000      )
+      - Simultaneous LE and BR/EDR to Same Device Capable (Host) : false        (0b0000     ) 
+      - Simultaneous LE and BR/EDR to Same Device Capable (Controller) : false  (0b0000 0   ) 
+      - BR/EDR Not Supported : true                                             (0b0000 01  )
+      - LE General Discoverable Mode : false                                    (0b0000 010 )
+      - LE Limited Discoverable Mode : true                                     (0b0000 0101)
+  - 이후 Data Type에 따라 설정 ex) Device Name
+    - Length : 12
+    - Flag : 0x09 (Device Name)
+    - Data : Nordic_UART
+  
+2. Scan Request Packet
+- Header
+   - PDU Type : SCAN_REQ  (0b     0011)
+   - Reserved : x         (0b   0 0011)
+   - ChSel    : 0         (0b  00 0011)
+   - TxAdd    : 1(Random) (0b 100 0011)
+   - RxAdd    : 1(Random) (0b1100 0011)
+   - Length   : 12        (고정 = SCAN_REQ는 Scanner Address와 Advertiser Address만 넣을 수 있음)
+- Payload
+  - Scanner Address : 0x00 00 00 00 00 00
+  - Advertiser Address : 0x00 00 00 00 00 00
+
+3. Scan Response Packet
+- Header
+   - PDU Type : SCAN_RSP  (0b     0100)
+   - Reserved : x         (0b   0 0100)
+   - ChSel    : 0         (0b  00 0100)
+   - TxAdd    : 1(Random) (0b 100 0100)
+   - RxAdd    : 0         (0b1100 0100)
+   - Length   : 6 + 알파   -> 알파 : 추후 Advertising Packet Data 길이를 추가해야 함
+- Payload
+  - Advertiser Address : 0xXX XX XX XX XX XX
+  - 이후 Data Type에 따라 설정 ex) 128bit-UUID
+    - Length : 17
+    - Flag : 0x07 (128-bit Service Class UUIDs)
+    - Data : 6e400001-b5a3-f393-e0a9-e50e24dcca9e
+
+### RADIO TX 설정 [Advertiser의 최초 TX]
+1. NRF_RADIO->POWER = 1             / Radio Peripheral Enable
+2. NRF_RADIO->EVNETS_DISABLED = 0   / Clear
+
+3. NRF_TIMER0->PRESCALER = 4        / Timer 0 1us unit 설정
+4. NRF_TIMER0->TASKS_STOP = 1       / Timer 0 Stop trigger
+
+5. NRF_RADIO->TXPOWER = 0x00        / Tx power 0dBm
+6. NRF_RADIO->MODE = 3              / 1Mbps BLE
+7. channel = 37
+8. NRF_RADIO->DATAWHITEIV = channel      / Data Whitening 채널값과 동일하게 설정 *** 추후 설정값 찾아보기
+9. NRF_RADIO->FREQUENCY = frequency[channel - 37] / Channel 37 2402MHz 설정
+10. NRF_RADIO->PREFIX0 = 0x8e
+11. NRF_RADIO->BASE0 = 0x89BED600   / TX Address = 0x8e 89 BE D6 00 
+12. NRF_RADIO->TXADDRESS = 0x00     / TX Address = PREFIX0 + BASE0
+13. NRF_RADIO->RXADDRESSES = 0x01   / Rx Address = ADDR1 Enable / 해당 Address는 Access Address로 Packet의 Header에 있는 4byte address이다.
+14. NRF_RADIO->PCNF0 = 0x0002 0106  (0b0010 0000 0001 0000 0110) / S0LEN = 1, S1LEN = 2, LFLEN = 6
+15. NRF_RADIO->PCNF1 = 0x0203 0025  (0b0011 0000 0000 0010 0101) / MAXLEN = 37, STATLEN = 0, BALEN = 3, EDIAN = 0, WHITEEN = 1
+16. NRF_RADIO->CRCCNF = 0x0103      (0b0000 0001 0000 0011) / LEN = 3, SKIPADDR = 1
+17. NRF_RADIO->CRCINIT = 0x555555   / CRC 최초 Init
+18. NRF_RADIO->CRCPOLY = 0x00065B   (0b0000 0000 0000 0110 0101 1011) / Polynomial 수식
+19. NRF_RADIO->TIFS = 145           / TIFS = 145us
+20. NRF_RADIO->PACKETPTR = (uint32_t) &packets[idxAdv] / Packet 연결
+
+21. NVIC_EnabledIRQ(RADIO_IRQn)      / Radio Peripheral 관련 인터럽트 활성화
+    
+22. channel = 37                    / 추후 Channel 변경을 위해 변수로 Channel값을 저장하여 관리
+23. NRF_RADIO->TASKS_TXEN = 1       / Radio TX를 시작하기 위해 TXEN Trigger 전달
+24. NRF_RADIO->SHORTS = 0x0B        (0b0000 1011) / READY_START Enable, END_DISABLE Enable, DISABLED_RXEN Enable
+25. NRF_RADIO->INTENSET = 0x10      (0b0001 0000) / DISABLED Event를 인터럽트로 설정
+
+### RADIO TX Interrupt 발생 [최초 TX 이후 Scan Request 수신을 위한 RX 준비]
+1. NRF_RADIO->EVENTS_DISABLED = 0   / 현재 발생한 RADIO Interrupt는 DISABLED이므로 Clear 진행
+2. NRF_RADIO->PACKETPTR = &packets[idxSCAN_REQ] / 수신할 Packet을 위한 Buffer 포인터 연결
+3. NRF_RADIO->SHORT = 0x17          (0b0001 0111) / READY_START Enable, END_DISABLE Enable, DISABLED_TXEN Enable, ADDRESS_RSSISTART Enable
+4. NRF_RADIO->INTENSET = 0x10       (0b0001 0000) / DISABLED Event를 인터럽트로 설정
+5. NRF_RADIO->TIFS = 148            / RADIO RX -> TX로 전환되는 시간 148us로 설정
+
+6. NRF_TIMER0->TASKS_START = 1      / Timer 0 Enable
+7. NRF_TIMER0->TASKS_CLEAR = 1      / Timer 0 Clear
+8. NRF_TIMER0->EVENTS_COMPARE[0]    / Timer 0 Compare Event Clear
+9. NRF_TIMER0->INTENSET = 0x01      / Timer 0 Compare Channel 0 Event를 인터럽트로 설정
+10. NVIC_EnableIRQ(TIMER0_IRQn)     / Timer 0 인터럽트 활성화
+11. NRF_TIMER0->CC[0] = 200         / Timer 0 CC[0] 200us Timeout 설정
+12. NRF_PPI->CH[0].EEP = NRF_RADIO->EVENTS_ADDRESS
+13. NRF_PPI->CH[0].TEP = NRF_TIMER0->TASKS_STOP / RADIO `ADDRESS` Event 발생 시, TIMER0 `STOP` Trigger 전달
+14. NRF_PPI->CHENSET = 0x01         / PPI Channel 0 활성화
+
+### RADIO RX Interrupt 발생 [Scan Request를 수신한 후 Scan Response를 위한 TX 준비]
+1. NRF_TIMER0->TASKS_STOP = 1       / 위 6.번에서 실행한 200us Timer Stop
+2. NRF_TIMER0->INTENCLR = 0x01      / Timer 0 Compare channel 0 Interrupt Clear
+3. NRF_PPI->CHENCLR = 0x01          / 위 11번, 12번의 NRF_RADIO->EVENTS_ADDRESS -> NRF_TIMER0->TASKS_STOP PPI 설정 해제
+4. NRF_RADIO->INTENCLR = 0x10       / RADIO DISABLED Interrupt Disable
+5. NRF_RADIO->EVENTS_DISABLED = 0   / DISABLED Event Clear
+   
+6. NRF_RADIO->PACKETPTR = &packets[idxSCAN_RSP] / Scan Response Packet 포인터 연결
+7. NRF_RADIO->SHORTS = 0x03         (0b0000 0011) / READY_START Enable, END_DISABLE Enable
+8. NRF_RADIO->TIFS = 150us
+9. memcpy(addrScanner, packets[idxSCAN_REQ][3], 6) / 위 2번에서 설정한 Scan Request Packet을 수신한 Buffer에서 Scanner Address를 추출
+10. NRF_RADIO->EVENTS_RSSIEND = 0   / 위 3번 SHORT로 RSSI 실행된 시점에서 EVENETS_RSSIEND CLear
+11. valueRSSI = NRF_RADIO->RSSISAMPLE / RSSI Sample Data 저장
+12. channel = NRF_RADIO->DATAWHITEIV & 0x3F / 현재 Scan Request를 수신한 Chennel 값 저장
+
+### RADIO TX Interrupt 발생 [Scan Response 전송 후, 다음 Channel로 전송 준비]
+1. NRF_RADIO->INTENCLR = 0x10       / RADIO DISABLED Interrupt Disable
+2. NRF_RADIO->EVENTS_DISABLED = 0   / DISABLED Event Clear
+3. channel++                        / 37->38, 38->39, 39->37 channel 변경
+4. NRF_RADIO->FREQUENCY = frequency[channel - 37] / channel 38에 맞춰 frequency 배열에서 추출 (channel 38 : 2426MHz)
+5. NRF_RADIO->DATAWHITEIV = channel / channel 값으로 Whitening 설정
+6. NRF_RADIO->TASKS_TXEN = 1        / Radio TX를 시작하기 위해 TXEN Trigger 전달
+7. NRF_RADIO->PACKETPTR = &packets[idxADV] / Packet 연결
+8. NRF_RADIO->SHORTS = 0x0B        (0b0000 1011) / READY_START Enable, END_DISABLE Enable, DISABLED_RXEN Enable
+9. NRF_RADIO->INTENSET = 0x10      (0b0001 0000) / DISABLED Event를 인터럽트로 설정
+
+### RADIO Timeslot Request [Channel 37, 38, 39 Advertising 완료 후, 새로운 Advertise Event 요청]
+- g_timeslot_req_normal.params.normal.distance_us = ADV_INTERVAL_TRANSLATE(adv_int_min) + 1000 * ((rng_pool[pool_index++]) % (ADV_INTERVAL_TRANSLATE(adv_int_max - adv_int_min)))
+  - 모든 Channel로 Advertising을 마무리했기 때문에, 다음 Timeslot을 요청한다. 
+  - Timeslot의 distance는 Timeslot간의 간격을 설정하는 것으로 현재 할당된 Timeslot의 시작 시점부터 다음 Timeslot의 시작시점간의 간격을 설정하는 변수이다
+  - 아래 계산식을 통해 Advertising의 Interval과 Timeslot간의 Interval를 맞추기 위함이다
+  - 단, Advertising의 Interval은 Min과 Max를 설정하고, Min과 Max 사의 시간으로 Interval이 랜덤으로 설정되어 Advertising을 수행한다.
+  - 이를 매커니즘을 맞추기 위해 아래 계산식을 수행한다. 
+  - ADV_INTERVAL_TRANSLATE(adv_int_min) + 1000 * ((rng_pool[pool_index++]) % (ADV_INTERVAL_TRANSLATE(adv_int_max - adv_int_min)))
+  - ADV_INTERVAL_TRANSLATE(adv_int_min) : Advertisng Interval의 최소값 계산으로 설정값의 625us단위로 환산하는 macro함수이다
+  - 1000 : 뒤에서 계산되는 us단위를 ms로 상향하기 위함
+  - rng_pool[pool_index++] : Random Number Generate (RNG) Peripheral를 통해 랜덤 숫자를 생성한 배열을 이용한다
+  - ADV_INTERVAL_TRANSLATE(adv_int_max - adv_int_min) : Advertising Interval로 설정한 Max에서 Min값을 뺀 후, 이를 625us단위로 환산한다
+  - 위 계산식은 기본 Advertising Interval의 Min에서 설정한 Max보다 적거나 같은 Interval를 랜덤으로 설정하게 된다
+  - 위 advDelay는  0 ~ 10ms 범위내에서 랜덤하게 Delay를 지정한다. 
+  - Bluetooth Core Specifiaction v5.2 중 2939 page 4.4.2.2.1 Advertising interval 중 advDelay 설명 참조
+- 위 Timeslot의 요청에 새롭게 시작되는 시점부터 Advertising을 chanel 37부터 다시 시작
+
+### TIMER0 EVENTS_COMPARE[0] Interrupt 발생 [Scan Response 수신 대기 중 Time-out 발생]
+1. NRF_TIMER0->TASKS_STOP = 1       / 위 6.번에서 실행한 200us Timer Stop
+2. NRF_TIMER0->INTENCLR = 0x01      / Timer 0 Compare channel 0 Interrupt Clear
+   
+3. NRF_PPI->CHENCLR = 0x01          / 위 11번, 12번의 NRF_RADIO->EVENTS_ADDRESS -> NRF_TIMER0->TASKS_STOP PPI 설정 해제
+   
+4. NRF_RADIO->INTENCLR = 0x10       / RADIO DISABLED Interrupt Disable
+5. NRF_RADIO->EVENTS_DISABLED = 0   / DISABLED Event Clear
+6. NRF_RADIO->INTENSET = 0xq0       / DISABLED Event Interrupt 활성화 (코드상에서 Race Condition 방지를 위함이라고 되어 있지만, 실제로는 필요하지 않는다.)
+7. NRF_RADIO->SHORT = 0x00          / RADIO SHORTS 설정 초기화???
+ - Time-out이 발생하면, 다음 Channel으로 Radio TX가 발생해야하는데, 이전에 설정한 DISABLED->TXEN SHORT 설정까지 Clear 시키면 괜찮을까???
+8. NRF_RADIO->TASKS_DISABLE         / RADIO DISABLE Trigger 전달
+
+9. Time-out 발생 이후 
+  - Time-out 발생 시점은 Scan Request 수신 대기 중에 Timer 200us가 Expried된 시점이다.
+  - 반대로 Timer가 Stop되는 시점은 NRF_RADIO->EVENTS_ADDRESS가 발생했을 떄, PPI 설정에 따라 NRF_TIMER0->TASKS_STOP으로 연결되어 Trigger를 전달한다. 
+  - Time-out 발생했다면, RADIO RX를 멈추고 RADIO TX로 넘어가야하는데, SHORT를 Clear 시키면 될까?
+  - 개발 코드에서는 SHORT Clear는 무시
+
+#### 정리할거
+1. packets[]의 Advertising 및 Scan Response Packet에 Data 넣기
+2. Scan Request에서 데이터 추출
+3. Radnom Peripheral
+
+#### 알아야할 것
+1. Advertising Event가 종료되면, Interval + 0 ~ 10ms Random Delay를 진행
